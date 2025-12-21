@@ -6,6 +6,7 @@ import { Utensils, Shield, ChefHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from "@clerk/nextjs";
+import Image from "next/image";
 
 const PortalAuth = () => {
   const router = useRouter();
@@ -22,8 +23,14 @@ const PortalAuth = () => {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-primary font-bold text-lg">CF</span>
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Image
+              src="/logo.png"
+              alt="Campus Food Logo"
+              width={48}
+              height={48}
+              className="object-contain"
+            />
           </div>
           <p className="text-muted-foreground">Loading...</p>
         </div>
@@ -40,7 +47,13 @@ const PortalAuth = () => {
         className="flex items-center gap-3"
       >
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <span className="text-primary font-bold text-lg">CF</span>
+            <Image
+              src="/public/logo.png"
+              alt="CampusFood Logo"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
         </div>
         <div>
           <h1 className="text-xl font-bold text-foreground">
