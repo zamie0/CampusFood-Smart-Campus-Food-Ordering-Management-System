@@ -1,8 +1,10 @@
+"use client";
+
 import { Bell, Search, ShoppingCart, Menu, User, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationPanel from "./NotificationPanel";
 import { notifications } from "@/data/mockData";
@@ -17,7 +19,7 @@ const Header = ({ cartItemCount, onCartClick, onMenuClick }: HeaderProps) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-md border-b border-border">
@@ -33,7 +35,7 @@ const Header = ({ cartItemCount, onCartClick, onMenuClick }: HeaderProps) => {
             <Menu className="h-5 w-5" />
           </Button>
           
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push("/")}>
             <div className="w-10 h-10 rounded-xl bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center">
               <span className="font-extrabold text-sm text-primary">CF</span>
             </div>
@@ -92,7 +94,7 @@ const Header = ({ cartItemCount, onCartClick, onMenuClick }: HeaderProps) => {
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => navigate("/profile")}
+                onClick={() => router.push("/profile")}
               >
                 <User className="h-5 w-5" />
               </Button>
@@ -118,7 +120,7 @@ const Header = ({ cartItemCount, onCartClick, onMenuClick }: HeaderProps) => {
               variant="warm" 
               size="sm" 
               className="gap-2"
-              onClick={() => navigate("/")}
+              onClick={() => router.push("/")}
             >
               <LogIn className="h-4 w-4" />
               <span>Sign In</span>

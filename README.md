@@ -1,4 +1,4 @@
-# CampusFood 🍽️
+# CampusFood
 
 **Customer, Vendor & Admin Web Application**
 
@@ -84,7 +84,7 @@ The application will be accessible via the local URL shown in the terminal.
 ### Edit Directly on GitHub
 
 * Open the file you want to edit
-* Click the **Edit (✏️)** icon
+* Click the **Edit** icon
 * Commit changes to save
 
 ---
