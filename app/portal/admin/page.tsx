@@ -22,23 +22,38 @@ const AdminPortalAuth = () => {
     if (savedUser) setAdminUser(savedUser);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
-      if (adminUser.trim() === "admin" && adminPass === "admin123") {
+    try {
+      const response = await fetch('/api/admins/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: adminUser.trim(), password: adminPass }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
         if (remember) {
           localStorage.setItem("adminRememberUser", adminUser);
         }
-        localStorage.setItem("adminLoggedIn", "true");
+        localStorage.setItem("adminToken", data.token);
+        localStorage.setItem("currentAdmin", JSON.stringify(data.admin));
         toast.success("Admin login successful!");
         setTimeout(() => router.push("/admin"), 500);
       } else {
-        toast.error("Invalid admin credentials");
-        setLoading(false);
+        toast.error(data.error || "Invalid admin credentials");
       }
-    }, 500);
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,13 +98,13 @@ const AdminPortalAuth = () => {
 
             <form onSubmit={handleLogin} className="p-6 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="admin-user">Username</Label>
+                <Label htmlFor="admin-user">Email</Label>
                 <Input
                   id="admin-user"
-                  placeholder="Enter username"
+                  placeholder="Enter email"
                   value={adminUser}
                   onChange={(e) => setAdminUser(e.target.value)}
-                  autoComplete="username"
+                  autoComplete="email"
                   className="h-11"
                 />
               </div>
@@ -133,7 +148,7 @@ const AdminPortalAuth = () => {
               </Button>
 
               <p className="text-center text-xs text-muted-foreground">
-                Demo: username "admin" / password "admin123"
+                Demo: email "admin@campusfood.com" / password "admin123"
               </p>
             </form>
           </div>

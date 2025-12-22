@@ -62,50 +62,73 @@ const VendorDashboard = () => {
   });
 
   useEffect(() => {
-    const isVendor = localStorage.getItem("vendorLoggedIn");
-    if (!isVendor) {
-      router.push("/portal");
+    const token = localStorage.getItem("vendorToken");
+    if (!token) {
+      router.push("/portal/vendor");
       return;
     }
-    
+
     const currentVendor = JSON.parse(localStorage.getItem("currentVendor") || "{}");
     setVendor(currentVendor);
     loadData(currentVendor.id);
-    
-    // Load store open status
-    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    const vendorData = registeredVendors.find((v: any) => v.id === currentVendor.id);
-    if (vendorData) {
-      setIsStoreOpen(vendorData.isOpen ?? true);
-    }
+
+    // Load store open status from vendor data
+    setIsStoreOpen(currentVendor.isOnline ?? true);
   }, [router]);
 
-  const loadData = (vendorId: string) => {
-    const savedMenu = JSON.parse(localStorage.getItem(`vendorMenu_${vendorId}`) || "[]");
-    setMenuItems(savedMenu);
-    
-    const savedOrders = JSON.parse(localStorage.getItem(`vendorOrders_${vendorId}`) || "[]");
-    setOrders(savedOrders);
+  const loadData = async (vendorId: string) => {
+    try {
+      // Fetch vendor data including menu
+      const vendorResponse = await fetch(`/api/vendors/${vendorId}`);
+      if (vendorResponse.ok) {
+        const vendorData = await vendorResponse.json();
+        setMenuItems(vendorData.menu || []);
+        setIsStoreOpen(vendorData.isOnline ?? true);
+      }
+
+      // Fetch orders for this vendor
+      const ordersResponse = await fetch(`/api/orders?vendorId=${vendorId}`);
+      if (ordersResponse.ok) {
+        const ordersData = await ordersResponse.json();
+        setOrders(ordersData.orders || []);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast.error('Failed to load data');
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("vendorLoggedIn");
+    localStorage.removeItem("vendorToken");
     localStorage.removeItem("currentVendor");
     toast.success("Logged out successfully");
     router.push("/");
   };
 
-  const toggleStoreOpen = () => {
+  const toggleStoreOpen = async () => {
     const newStatus = !isStoreOpen;
     setIsStoreOpen(newStatus);
-    
-    // Update in registeredVendors for customer view
-    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    const updatedVendors = registeredVendors.map((v: any) => 
-      v.id === vendor?.id ? { ...v, isOpen: newStatus } : v
-    );
-    localStorage.setItem("registeredVendors", JSON.stringify(updatedVendors));
-    toast.success(newStatus ? "Store is now open!" : "Store is now closed");
+
+    try {
+      const response = await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isOnline: newStatus }),
+      });
+
+      if (response.ok) {
+        toast.success(newStatus ? "Store is now open!" : "Store is now closed");
+      } else {
+        toast.error('Failed to update store status');
+        setIsStoreOpen(!newStatus); // Revert on error
+      }
+    } catch (error) {
+      console.error('Error updating store status:', error);
+      toast.error('Failed to update store status');
+      setIsStoreOpen(!newStatus); // Revert on error
+    }
   };
 
   const handleUpdateVendorImage = (imageData: string) => {
@@ -122,7 +145,7 @@ const VendorDashboard = () => {
     toast.success("Store image updated!");
   };
 
-  const handleAddMenuItem = () => {
+  const handleAddMenuItem = async () => {
     if (!newItem.name || !newItem.price) {
       toast.error("Please fill in required fields");
       return;
@@ -144,36 +167,90 @@ const VendorDashboard = () => {
 
     const updatedMenu = [...menuItems, item];
     setMenuItems(updatedMenu);
-    localStorage.setItem(`vendorMenu_${vendor?.id}`, JSON.stringify(updatedMenu));
-    
+
+    // Update in database
+    try {
+      await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ menu: updatedMenu }),
+      });
+      toast.success("Menu item added!");
+    } catch (error) {
+      console.error('Error adding menu item:', error);
+      toast.error('Failed to add menu item');
+      setMenuItems(menuItems); // Revert
+      return;
+    }
+
     setNewItem({ name: "", price: "", category: "Main", description: "", prepTime: "15", image: "", tags: "" });
     setShowAddModal(false);
-    toast.success("Menu item added!");
   };
 
-  const toggleItemAvailability = (itemId: string) => {
+  const toggleItemAvailability = async (itemId: string) => {
     const updatedMenu = menuItems.map(item =>
       item.id === itemId ? { ...item, isAvailable: !item.isAvailable } : item
     );
     setMenuItems(updatedMenu);
-    localStorage.setItem(`vendorMenu_${vendor?.id}`, JSON.stringify(updatedMenu));
-    toast.success("Availability updated");
+
+    try {
+      await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ menu: updatedMenu }),
+      });
+      toast.success("Availability updated");
+    } catch (error) {
+      console.error('Error updating availability:', error);
+      toast.error('Failed to update availability');
+      setMenuItems(menuItems); // Revert
+    }
   };
 
-  const deleteMenuItem = (itemId: string) => {
+  const deleteMenuItem = async (itemId: string) => {
     const updatedMenu = menuItems.filter(item => item.id !== itemId);
     setMenuItems(updatedMenu);
-    localStorage.setItem(`vendorMenu_${vendor?.id}`, JSON.stringify(updatedMenu));
-    toast.success("Item deleted");
+
+    try {
+      await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ menu: updatedMenu }),
+      });
+      toast.success("Item deleted");
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete item');
+      setMenuItems(menuItems); // Revert
+    }
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: Order["status"]) => {
+  const updateOrderStatus = async (orderId: string, newStatus: Order["status"]) => {
     const updatedOrders = orders.map(order =>
       order.id === orderId ? { ...order, status: newStatus } : order
     );
     setOrders(updatedOrders);
-    localStorage.setItem(`vendorOrders_${vendor?.id}`, JSON.stringify(updatedOrders));
-    toast.success(`Order marked as ${newStatus}`);
+
+    try {
+      await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      toast.success(`Order marked as ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
+      setOrders(orders); // Revert
+    }
   };
 
   const stats = {

@@ -48,7 +48,7 @@ const PortalAuth = () => {
       >
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Image
-              src="/public/logo.png"
+              src="/logo.png"
               alt="CampusFood Logo"
               width={32}
               height={32}

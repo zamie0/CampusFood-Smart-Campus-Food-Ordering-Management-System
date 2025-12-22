@@ -73,89 +73,153 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    const isAdmin = localStorage.getItem("adminLoggedIn");
-    if (!isAdmin) {
-      router.push("/portal");
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      router.push("/portal/admin");
       return;
     }
-    
+
     loadData();
   }, [router]);
 
-  const loadData = () => {
-    const requests = JSON.parse(localStorage.getItem("vendorRequests") || "[]");
-    setVendorRequests(requests);
-    
-    const vendors = JSON.parse(localStorage.getItem("approvedVendors") || "[]");
-    setApprovedVendors(vendors);
+  const loadData = async () => {
+    try {
+      // Load pending vendors
+      const pendingResponse = await fetch('/api/admin/vendors/pending?status=inactive');
+      if (pendingResponse.ok) {
+        const pendingData = await pendingResponse.json();
+        const transformedRequests = pendingData.items.map((v: any) => ({
+          id: v._id,
+          name: v.name,
+          email: v.email,
+          phone: v.phone,
+          description: v.details,
+          status: 'pending' as const,
+          submittedAt: new Date(v.createdAt).getTime(),
+        }));
+        setVendorRequests(transformedRequests);
+      }
+
+      // Load approved vendors
+      const approvedResponse = await fetch('/api/vendors?status=active');
+      if (approvedResponse.ok) {
+        const approvedData = await approvedResponse.json();
+        const transformedVendors = approvedData.items.map((v: any) => ({
+          id: v._id,
+          name: v.name,
+          email: v.email,
+          phone: v.phone,
+          description: v.details,
+          isActive: v.isOnline,
+          totalOrders: 0, // TODO: calculate from orders
+          revenue: 0, // TODO: calculate from orders
+          approvedAt: new Date(v.updatedAt).getTime(),
+        }));
+        setApprovedVendors(transformedVendors);
+      }
+    } catch (error) {
+      console.error('Error loading admin data:', error);
+      toast.error('Failed to load data');
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("adminLoggedIn");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("currentAdmin");
     toast.success("Logged out successfully");
     router.push("/");
   };
 
-  const handleApproveVendor = (request: VendorRequest) => {
-    // Update request status
-    const updatedRequests = vendorRequests.map(r => 
-      r.id === request.id ? { ...r, status: "approved" as const } : r
-    );
-    localStorage.setItem("vendorRequests", JSON.stringify(updatedRequests));
-    setVendorRequests(updatedRequests);
+  const handleApproveVendor = async (request: VendorRequest) => {
+    try {
+      const response = await fetch(`/api/admin/vendors/${request.id}/decision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'approve' }),
+      });
 
-    const vendorId = `vendor_${Date.now()}`;
-    
-    // Add to approved vendors (for admin)
-    const newVendor: ApprovedVendor = {
-      id: vendorId,
-      name: request.name,
-      email: request.email,
-      phone: request.phone,
-      description: request.description,
-      isActive: true,
-      totalOrders: 0,
-      revenue: 0,
-      approvedAt: Date.now(),
-    };
-    const updatedVendors = [...approvedVendors, newVendor];
-    localStorage.setItem("approvedVendors", JSON.stringify(updatedVendors));
-    setApprovedVendors(updatedVendors);
+      if (response.ok) {
+        // Remove from pending requests
+        setVendorRequests(prev => prev.filter(r => r.id !== request.id));
 
-    // Also add to registeredVendors (for customer view)
-    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    const vendorForCustomer = {
-      id: vendorId,
-      name: request.name,
-      description: request.description || "Fresh and delicious food",
-      rating: 4.5,
-      reviewCount: 0,
-      image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop",
-      cuisine: "Local",
-      deliveryTime: "15-25 min",
-      isOpen: true,
-    };
-    localStorage.setItem("registeredVendors", JSON.stringify([...registeredVendors, vendorForCustomer]));
+        // Reload approved vendors
+        const approvedResponse = await fetch('/api/vendors?status=active');
+        if (approvedResponse.ok) {
+          const approvedData = await approvedResponse.json();
+          const transformedVendors = approvedData.items.map((v: any) => ({
+            id: v._id,
+            name: v.name,
+            email: v.email,
+            phone: v.phone,
+            description: v.details,
+            isActive: v.isOnline,
+            totalOrders: 0,
+            revenue: 0,
+            approvedAt: new Date(v.updatedAt).getTime(),
+          }));
+          setApprovedVendors(transformedVendors);
+        }
 
-    toast.success(`${request.name} has been approved!`);
+        toast.success(`${request.name} has been approved!`);
+      } else {
+        toast.error('Failed to approve vendor');
+      }
+    } catch (error) {
+      console.error('Error approving vendor:', error);
+      toast.error('Failed to approve vendor');
+    }
   };
 
-  const handleRejectVendor = (request: VendorRequest) => {
-    const updatedRequests = vendorRequests.map(r => 
-      r.id === request.id ? { ...r, status: "rejected" as const } : r
-    );
-    localStorage.setItem("vendorRequests", JSON.stringify(updatedRequests));
-    setVendorRequests(updatedRequests);
-    toast.error(`${request.name} has been rejected`);
+  const handleRejectVendor = async (request: VendorRequest) => {
+    try {
+      const response = await fetch(`/api/admin/vendors/${request.id}/decision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'reject' }),
+      });
+
+      if (response.ok) {
+        // Remove from pending requests
+        setVendorRequests(prev => prev.filter(r => r.id !== request.id));
+        toast.error(`${request.name} has been rejected`);
+      } else {
+        toast.error('Failed to reject vendor');
+      }
+    } catch (error) {
+      console.error('Error rejecting vendor:', error);
+      toast.error('Failed to reject vendor');
+    }
   };
 
-  const toggleVendorStatus = (vendorId: string) => {
-    const updatedVendors = approvedVendors.map(v => 
-      v.id === vendorId ? { ...v, isActive: !v.isActive } : v
-    );
-    localStorage.setItem("approvedVendors", JSON.stringify(updatedVendors));
-    setApprovedVendors(updatedVendors);
-    toast.success("Vendor status updated");
+  const toggleVendorStatus = async (vendorId: string) => {
+    const vendor = approvedVendors.find(v => v.id === vendorId);
+    if (!vendor) return;
+
+    try {
+      const response = await fetch(`/api/vendors/${vendorId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isOnline: !vendor.isActive }),
+      });
+
+      if (response.ok) {
+        setApprovedVendors(prev => prev.map(v =>
+          v.id === vendorId ? { ...v, isActive: !v.isActive } : v
+        ));
+        toast.success("Vendor status updated");
+      } else {
+        toast.error('Failed to update vendor status');
+      }
+    } catch (error) {
+      console.error('Error updating vendor status:', error);
+      toast.error('Failed to update vendor status');
+    }
   };
 
   const pendingRequests = vendorRequests.filter(r => r.status === "pending");

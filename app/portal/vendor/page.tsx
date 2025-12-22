@@ -29,7 +29,7 @@ const VendorPortalAuth = () => {
     phone: ""
   });
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) {
       toast.error("Please enter email and password");
@@ -38,60 +38,70 @@ const VendorPortalAuth = () => {
 
     setLoading(true);
 
-    // Check if vendor is approved
-    const approvedVendors = JSON.parse(localStorage.getItem("approvedVendors") || "[]");
-    const vendor = approvedVendors.find((v: any) => v.email === email.trim());
+    try {
+      const response = await fetch('/api/vendors/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
 
-    setTimeout(() => {
-      if (vendor) {
-        localStorage.setItem("vendorLoggedIn", "true");
-        localStorage.setItem("currentVendor", JSON.stringify(vendor));
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem("vendorToken", data.token);
+        localStorage.setItem("currentVendor", JSON.stringify(data.vendor));
         toast.success("Vendor login successful!");
         setTimeout(() => router.push("/vendor"), 500);
       } else {
-        // Check if pending
-        const requests = JSON.parse(localStorage.getItem("vendorRequests") || "[]");
-        const pending = requests.find((r: any) => r.email === email.trim() && r.status === "pending");
-
-        if (pending) {
+        if (data.error === 'Account not approved or suspended') {
           toast.error("Your registration is still pending admin approval");
         } else {
-          toast.error("Invalid credentials or not registered");
+          toast.error(data.error || "Invalid credentials");
         }
-        setLoading(false);
       }
-    }, 500);
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regData.name || !regData.email || !regData.password) {
       toast.error("Please fill all required fields");
       return;
     }
 
-    const requests = JSON.parse(localStorage.getItem("vendorRequests") || "[]");
+    setLoading(true);
 
-    // Check if already registered
-    const existing = requests.find((r: any) => r.email === regData.email);
-    if (existing) {
-      toast.error("This email is already registered");
-      return;
+    try {
+      const response = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(regData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Registration submitted! Awaiting admin approval.");
+        setActiveTab("login");
+        setRegData({ name: "", email: "", password: "", phone: "" });
+      } else {
+        toast.error(data.error || "Registration failed");
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error("Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    const newRequest = {
-      id: `vr${Date.now()}`,
-      name: regData.name,
-      email: regData.email,
-      phone: regData.phone,
-      status: "pending",
-      submittedAt: Date.now(),
-    };
-    localStorage.setItem("vendorRequests", JSON.stringify([newRequest, ...requests]));
-
-    toast.success("Registration submitted! Awaiting admin approval.");
-    setActiveTab("login");
-    setRegData({ name: "", email: "", password: "", phone: "" });
   };
 
   return (
