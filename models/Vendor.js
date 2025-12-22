@@ -53,6 +53,6 @@ const VendorSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-VendorSchema.index({ name: 'text', email: 'text', categories: 1 });
+VendorSchema.index({ name: 'text', email: 'text' });
 
 module.exports = mongoose.models.Vendor || mongoose.model('Vendor', VendorSchema);
