@@ -64,6 +64,11 @@ const Index = () => {
 
     loadVendors();
     loadActiveOrders();
+    
+    // Poll for vendor updates every 60 seconds
+    const interval = setInterval(loadVendors, 60000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
   }, []);
 
   // Get unique cuisines from vendors

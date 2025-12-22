@@ -80,6 +80,10 @@ const AdminDashboard = () => {
     }
 
     loadData();
+    
+    // Poll for updates every 30 seconds
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, [router]);
 
   const loadData = async () => {

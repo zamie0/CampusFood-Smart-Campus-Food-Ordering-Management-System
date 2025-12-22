@@ -70,6 +70,38 @@ const VendorDashboard = () => {
 
     const currentVendor = JSON.parse(localStorage.getItem("currentVendor") || "{}");
     setVendor(currentVendor);
+    
+    // Check if vendor is approved
+    if (currentVendor.status !== 'active') {
+      // Start polling for status updates
+      const pollStatus = async () => {
+        try {
+          const response = await fetch(`/api/vendors/${currentVendor.id}`);
+          if (response.ok) {
+            const vendorData = await response.json();
+            if (vendorData.status === 'active') {
+              // Vendor approved! Update local storage and reload
+              const updatedVendor = { ...currentVendor, status: 'active' };
+              localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
+              setVendor(updatedVendor);
+              toast.success("Your account has been approved! Welcome to the platform.");
+              loadData(currentVendor.id);
+            } else if (vendorData.status === 'suspended') {
+              // Vendor rejected
+              toast.error("Your registration has been rejected. Please contact support.");
+              handleLogout();
+            }
+          }
+        } catch (error) {
+          console.error('Error polling status:', error);
+        }
+      };
+
+      // Poll every 30 seconds
+      const interval = setInterval(pollStatus, 30000);
+      return () => clearInterval(interval);
+    }
+    
     loadData(currentVendor.id);
 
     // Load store open status from vendor data
@@ -271,6 +303,28 @@ const VendorDashboard = () => {
     { id: "analytics", label: "Analytics", icon: TrendingUp },
     { id: "settings", label: "Settings", icon: Settings },
   ];
+
+  // Show pending approval screen if vendor is not approved
+  if (vendor && vendor.status !== 'active') {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center p-8">
+          <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Account Pending Approval</h1>
+          <p className="text-muted-foreground mb-6">
+            Your vendor registration is currently under review by our administrators. 
+            You will be notified once your account is approved.
+          </p>
+          <Button onClick={handleLogout} variant="outline">
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-background flex overflow-hidden">

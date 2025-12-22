@@ -97,17 +97,68 @@ const Profile = () => {
   const fetchOrders = async () => {
     if (!user) return;
 
-    // TODO: Implement MongoDB orders fetching
-    // For now, set empty orders
-    setOrders([]);
+    try {
+      const response = await fetch('/api/orders?customerId=' + user.id);
+      if (response.ok) {
+        const data = await response.json();
+        // Transform orders to match the interface
+        const transformedOrders = data.orders.map((order: any) => ({
+          id: order._id,
+          vendor_name: order.vendorId?.name || 'Unknown Vendor',
+          items: order.items.map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          total: order.totalAmount,
+          status: order.status,
+          order_time: new Date(order.createdAt).toLocaleString(),
+        }));
+        setOrders(transformedOrders);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
+    }
   };
 
   const fetchFavorites = async () => {
     if (!user) return;
 
-    // TODO: Implement MongoDB favorites fetching
-    // For now, set empty favorites
-    setFavorites([]);
+    try {
+      // Get customer data including favorites
+      const customerResponse = await fetch('/api/customers?email=' + user.email);
+      if (customerResponse.ok) {
+        const customerData = await customerResponse.json();
+        if (customerData.items && customerData.items.length > 0) {
+          const customer = customerData.items[0];
+          // Get vendor details for favorites
+          const favoriteVendors = [];
+          for (const vendorId of customer.favorites || []) {
+            try {
+              const vendorResponse = await fetch(`/api/vendors/${vendorId}`);
+              if (vendorResponse.ok) {
+                const vendorData = await vendorResponse.json();
+                favoriteVendors.push({
+                  id: vendorData._id,
+                  name: vendorData.name,
+                  description: vendorData.details || '',
+                  rating: vendorData.rating || 0,
+                  cuisine: vendorData.categories?.[0] || 'Various',
+                  image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop',
+                });
+              }
+            } catch (error) {
+              console.error('Error fetching vendor:', vendorId, error);
+            }
+          }
+          setFavorites(favoriteVendors);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching favorites:', error);
+      toast.error('Failed to load favorites');
+    }
   };
 
   const handleSaveProfile = async () => {
