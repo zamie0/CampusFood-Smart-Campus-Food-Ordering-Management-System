@@ -7,11 +7,12 @@ const Vendor = (async () => {
   return (mod as any).default || (mod as any);
 })();
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const Model = await Vendor;
-    const item = await Model.findById(params.id).lean();
+    const resolvedParams = await params;
+    const item = await Model.findById(resolvedParams.id).lean();
     if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(item);
   } catch (err: any) {
@@ -20,13 +21,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const body = await req.json();
     const Model = await Vendor;
+    const resolvedParams = await params;
 
-    const updated = await Model.findByIdAndUpdate(params.id, body, { new: true }).lean();
+    const updated = await Model.findByIdAndUpdate(resolvedParams.id, body, { new: true }).lean();
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(updated);
   } catch (err: any) {
@@ -35,12 +37,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const Model = await Vendor;
+    const resolvedParams = await params;
 
-    const deleted = await Model.findByIdAndDelete(params.id).lean();
+    const deleted = await Model.findByIdAndDelete(resolvedParams.id).lean();
     if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (err: any) {

@@ -12,13 +12,14 @@ const Customer = (async () => {
   return (mod as any).default || (mod as any);
 })();
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const VendorModel = await Vendor;
     const CustomerModel = await Customer;
+    const resolvedParams = await params;
 
-    const vendor = await VendorModel.findById(params.id).lean();
+    const vendor = await VendorModel.findById(resolvedParams.id).lean();
     if (!vendor) return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
 
     // Example composition: customers who favorited this vendor

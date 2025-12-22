@@ -7,11 +7,12 @@ const Order = (async () => {
   return (mod as any).default || (mod as any);
 })();
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const Model = await Order;
-    const order = await Model.findById(params.id)
+    const resolvedParams = await params;
+    const order = await Model.findById(resolvedParams.id)
       .populate('customerId', 'name email')
       .populate('vendorId', 'name email')
       .lean();
@@ -23,13 +24,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const body = await req.json();
     const Model = await Order;
+    const resolvedParams = await params;
 
-    const updated = await Model.findByIdAndUpdate(params.id, body, { new: true })
+    const updated = await Model.findByIdAndUpdate(resolvedParams.id, body, { new: true })
       .populate('customerId', 'name email')
       .populate('vendorId', 'name email')
       .lean();
@@ -41,12 +43,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const Model = await Order;
+    const resolvedParams = await params;
 
-    const deleted = await Model.findByIdAndDelete(params.id).lean();
+    const deleted = await Model.findByIdAndDelete(resolvedParams.id).lean();
     if (!deleted) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (err: any) {

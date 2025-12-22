@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Clock,
   Trash2,
+  Star,
 } from "lucide-react";
 import { foodItems, vendors } from "@/data/mockData";
 
@@ -56,8 +57,11 @@ interface Order {
 
 interface Favorite {
   id: string;
-  food_item_id: string;
-  vendor_id: string;
+  name: string;
+  description: string;
+  rating: number;
+  cuisine: string;
+  image: string;
 }
 
 const Profile = () => {
@@ -475,49 +479,50 @@ const Profile = () => {
                       </div>
                     ) : (
                       <div className="grid md:grid-cols-2 gap-4">
-                        {favorites.map((fav) => {
-                          const item = getFoodItem(fav.food_item_id);
-                          const vendor = getVendor(fav.vendor_id);
-                          if (!item) return null;
-
-                          return (
-                            <div
-                              key={fav.id}
-                              className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border"
-                            >
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-20 h-20 rounded-lg object-cover"
-                              />
-                              <div className="flex-1">
-                                <h4 className="font-medium text-foreground text-sm">
-                                  {item.name}
-                                </h4>
-                                <p className="text-xs text-muted-foreground">
-                                  {vendor?.name}
-                                </p>
-                                <p className="text-primary font-semibold mt-1">
-                                  ${item.price.toFixed(2)}
-                                </p>
-                                <div className="flex gap-2 mt-2">
-                                  <Button variant="soft" size="sm" className="h-7 text-xs">
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Add
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs text-destructive hover:text-destructive"
-                                    onClick={() => handleRemoveFavorite(fav.id)}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                        {favorites.map((fav) => (
+                          <div
+                            key={fav.id}
+                            className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border"
+                          >
+                            <img
+                              src={fav.image}
+                              alt={fav.name}
+                              className="w-20 h-20 rounded-lg object-cover"
+                            />
+                            <div className="flex-1">
+                              <h4 className="font-medium text-foreground text-sm">
+                                {fav.name}
+                              </h4>
+                              <p className="text-xs text-muted-foreground">
+                                {fav.cuisine}
+                              </p>
+                              <div className="flex items-center gap-1 mt-1">
+                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                <span className="text-xs text-muted-foreground">
+                                  {fav.rating.toFixed(1)}
+                                </span>
+                              </div>
+                              <div className="flex gap-2 mt-2">
+                                <Button
+                                  variant="soft"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => router.push(`/`)}
+                                >
+                                  View Menu
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs text-destructive hover:text-destructive"
+                                  onClick={() => handleRemoveFavorite(fav.id)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
                               </div>
                             </div>
-                          );
-                        })}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

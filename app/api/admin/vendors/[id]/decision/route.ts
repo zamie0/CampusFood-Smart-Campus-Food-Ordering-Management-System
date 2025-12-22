@@ -13,14 +13,15 @@ const AuditLog = (async () => {
 })();
 
 // POST decision on vendor: { action: 'approve'|'reject', reason?: string, adminId?: string }
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { action, reason, adminId } = await req.json();
     const VendorModel = await Vendor;
     const AuditModel = await AuditLog;
 
-    const vendor = await VendorModel.findById(params.id);
+    const resolvedParams = await params;
+    const vendor = await VendorModel.findById(resolvedParams.id);
     if (!vendor) return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
 
     let newStatus: 'active' | 'inactive' | 'suspended' = vendor.status;

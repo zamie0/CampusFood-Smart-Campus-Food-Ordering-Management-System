@@ -69,7 +69,6 @@ const Index = () => {
     const interval = setInterval(loadVendors, 60000);
     return () => clearInterval(interval);
   }, [user?.id]);
-  }, []);
 
   // Get unique cuisines from vendors
   const cuisineFilters = ["All", ...new Set(vendors.map(v => v.cuisine).filter(Boolean))];

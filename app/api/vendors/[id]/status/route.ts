@@ -8,13 +8,14 @@ const Vendor = (async () => {
 })();
 
 // PATCH to set online/offline: { isOnline: boolean }
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { isOnline } = await req.json();
     const Model = await Vendor;
+    const resolvedParams = await params;
     const updated = await Model.findByIdAndUpdate(
-      params.id,
+      resolvedParams.id,
       { isOnline: !!isOnline },
       { new: true }
     ).lean();

@@ -8,18 +8,19 @@ const Vendor = (async () => {
 })();
 
 // POST: add pending food item(s). Body: { items: [{ name, description?, price, tags?, image? }] }
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { items } = await req.json();
     const Model = await Vendor;
+    const resolvedParams = await params;
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'items array required' }, { status: 400 });
     }
 
     const updated = await Model.findByIdAndUpdate(
-      params.id,
+      resolvedParams.id,
       {
         $push: {
           pendingMenu: {
@@ -48,13 +49,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
 // PATCH approve/reject pending item
 // Body: { action: 'approve'|'reject', index: number }
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { action, index } = await req.json();
     const Model = await Vendor;
+    const resolvedParams = await params;
 
-    const vendor = await Model.findById(params.id);
+    const vendor = await Model.findById(resolvedParams.id);
     if (!vendor) return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
 
     if (typeof index !== 'number' || index < 0 || index >= vendor.pendingMenu.length) {
@@ -77,12 +79,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 // DELETE clear all pending items
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const Model = await Vendor;
+    const resolvedParams = await params;
     const updated = await Model.findByIdAndUpdate(
-      params.id,
+      resolvedParams.id,
       { $set: { pendingMenu: [] } },
       { new: true }
     ).lean();
