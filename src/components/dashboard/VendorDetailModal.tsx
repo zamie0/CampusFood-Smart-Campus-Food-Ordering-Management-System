@@ -1,6 +1,8 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Star, Clock, MapPin, ArrowLeft, Plus, Minus, Heart } from "lucide-react";
+import { X, Star, Clock, ArrowLeft, Plus, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,81 +25,45 @@ const VendorDetailModal = ({
 }: VendorDetailModalProps) => {
   const { user } = useAuth();
   const [vendorItems, setVendorItems] = useState<FoodItem[]>([]);
-  const [favorites, setFavorites] = useState<{ food_item_id: string }[]>([]);
 
-  // Load menu items from API
+  // Load vendor menu
   useEffect(() => {
-    if (vendor) {
-      const loadMenu = async () => {
-        try {
-          const response = await fetch(`/api/vendors/${vendor.id}`);
-          if (response.ok) {
-            const vendorData = await response.json();
-            // Transform menu items to match FoodItem interface
-            const transformedItems = (vendorData.menu || []).map((item: any) => ({
-              id: item._id || item.id,
-              vendorId: vendor.id,
-              name: item.name,
-              description: item.description || '',
-              price: item.price,
-              image: item.image || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=200&fit=crop',
-              category: item.status === 'active' ? 'Main' : 'Inactive', // Use status as category or default
-              tags: item.tags || [],
-              isAvailable: item.available !== false,
-              isPopular: item.status === 'popular', // Assuming status can be 'popular'
-            }));
-            setVendorItems(transformedItems);
-          }
-        } catch (error) {
-          console.error('Error loading menu:', error);
-        }
-      };
-      loadMenu();
-    }
-  }, [vendor]);
-
-  // Load favorites when modal opens
-  useEffect(() => {
-    if (isOpen && user && vendor) {
-      const storedFavorites = JSON.parse(localStorage.getItem(`favorites_${user.id}_${vendor.id}`) || "[]");
-      setFavorites(storedFavorites);
-    }
-  }, [isOpen, user, vendor]);
-
-  const isFavorite = (foodItemId: string) => {
-    return favorites.some((fav) => fav.food_item_id === foodItemId);
-  };
-
-  const handleToggleFavorite = (item: FoodItem) => {
-    if (!user) {
-      toast.error("Please sign in to add favorites");
-      return;
-    }
-
     if (!vendor) return;
 
-    const isCurrentlyFavorite = isFavorite(item.id);
-    let newFavorites;
+    const loadMenu = async () => {
+      try {
+        const res = await fetch(`/api/vendors/${vendor.id}`);
+        if (!res.ok) throw new Error("Failed to load vendor menu");
 
-    if (isCurrentlyFavorite) {
-      newFavorites = favorites.filter((fav) => fav.food_item_id !== item.id);
-      toast.success("Removed from favorites");
-    } else {
-      newFavorites = [...favorites, { food_item_id: item.id }];
-      toast.success("Added to favorites");
-    }
+        const vendorData = await res.json();
+        const items: FoodItem[] = (vendorData.menu || []).map((item: any) => ({
+          id: item._id || item.id,
+          vendorId: vendor.id,
+          name: item.name,
+          description: item.description || "",
+          price: item.price,
+          image:
+            item.image ||
+            "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=200&fit=crop",
+          category: item.status === "active" ? "Main" : "Inactive",
+          tags: item.tags || [],
+          isAvailable: item.available !== false,
+          isPopular: item.status === "popular",
+        }));
+        setVendorItems(items);
+      } catch (err) {
+        console.error("Error loading menu:", err);
+      }
+    };
 
-    setFavorites(newFavorites);
-    localStorage.setItem(`favorites_${user.id}_${vendor.id}`, JSON.stringify(newFavorites));
-  };
+    loadMenu();
+  }, [vendor]);
 
   if (!vendor) return null;
 
-  // Group items by category
+  // Group menu items by category
   const categories = vendorItems.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
-    }
+    if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
     return acc;
   }, {} as Record<string, FoodItem[]>);
@@ -142,24 +108,18 @@ const VendorDetailModal = ({
                 <ArrowLeft className="h-5 w-5" />
               </Button>
 
-              {/* Vendor Info Overlay */}
+              {/* Vendor Info */}
               <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Badge
-                      variant={vendor.isOpen ? "success" : "secondary"}
-                      className="mb-2"
-                    >
-                      {vendor.isOpen ? "Open Now" : "Closed"}
-                    </Badge>
-                    <h1 className="text-2xl md:text-3xl font-bold text-background">
-                      {vendor.name}
-                    </h1>
-                    <p className="text-background/80 text-sm mt-1">
-                      {vendor.description}
-                    </p>
-                  </div>
-                </div>
+                <Badge
+                  variant={vendor.isOpen ? "success" : "secondary"}
+                  className="mb-2"
+                >
+                  {vendor.isOpen ? "Open Now" : "Closed"}
+                </Badge>
+                <h1 className="text-2xl md:text-3xl font-bold text-background">
+                  {vendor.name}
+                </h1>
+                <p className="text-background/80 text-sm mt-1">{vendor.description}</p>
 
                 {/* Stats */}
                 <div className="flex items-center gap-4 mt-3">
@@ -181,7 +141,7 @@ const VendorDetailModal = ({
               </div>
             </div>
 
-            {/* Menu Content */}
+            {/* Menu Items */}
             <ScrollArea className="flex-1">
               <div className="p-4 md:p-6 space-y-6">
                 {Object.entries(categories).map(([category, items]) => (
@@ -243,24 +203,6 @@ const VendorDetailModal = ({
                                 ${item.price.toFixed(2)}
                               </span>
                               <div className="flex items-center gap-2">
-                                {user && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleToggleFavorite(item)}
-                                    className={`h-9 w-9 rounded-full ${
-                                      isFavorite(item.id)
-                                        ? "text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        : "text-muted-foreground hover:text-destructive"
-                                    }`}
-                                  >
-                                    <Heart
-                                      className={`h-4 w-4 ${
-                                        isFavorite(item.id) ? "fill-current" : ""
-                                      }`}
-                                    />
-                                  </Button>
-                                )}
                                 <Button
                                   size="sm"
                                   onClick={() => onAddToCart(item)}

@@ -15,14 +15,12 @@ interface HeaderProps {
   cartItemCount: number;
   onCartClick: () => void;
   onMenuClick: () => void;
-  onFavoritesClick?: () => void;
   onOrderTrackingClick?: () => void;
-  favoritesCount?: number;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
 }
 
-const Header = ({ cartItemCount, onCartClick, onMenuClick, onFavoritesClick, onOrderTrackingClick, favoritesCount = 0, searchQuery = "", onSearchChange }: HeaderProps) => {
+const Header = ({ cartItemCount, onCartClick, onMenuClick, onOrderTrackingClick, searchQuery = "", onSearchChange }: HeaderProps) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -202,7 +200,6 @@ const Header = ({ cartItemCount, onCartClick, onMenuClick, onFavoritesClick, onO
             </SheetHeader>
           </div>
           <div className="p-4">
-            {/* If you have user.customerId in your auth context, pass here. Fallback to user?.id */}
             <OrderStatusCard customerId={(user as any)?.customerId || (user as any)?.id} />
           </div>
         </SheetContent>

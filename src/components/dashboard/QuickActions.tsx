@@ -25,14 +25,6 @@ const QuickActions = ({ onNavigate }: QuickActionsProps) => {
       bg: 'bg-info/10',
     },
     {
-      id: 'favorites',
-      icon: Heart,
-      label: 'Favorites',
-      description: 'Quick reorder',
-      color: 'text-destructive',
-      bg: 'bg-destructive/10',
-    },
-    {
       id: 'history',
       icon: History,
       label: 'Order History',

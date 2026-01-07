@@ -9,12 +9,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import PersonalSection from "./sections/Personal";
 import OrdersSection from "./sections/Orders";
-import FavoritesSection from "./sections/Favorites";
 import NotificationsSection from "./sections/Notifications";
 import { User, History, Heart, Bell, Shield, ChevronLeft, LogOut, } from "lucide-react";
 import { FoodItem, Vendor, CartItem } from "@/data/mockData";
 
-type TabType = "personal" | "orders" | "favorites" | "notifications" ;
+type TabType = "personal" | "orders" | "notifications" ;
 
 interface Profile {
   id: string;
@@ -34,20 +33,12 @@ interface Order {
   status: string;
   order_time: string;
 }
-
-interface Favorite {
-  id: string;
-  food_item_id: string;
-  vendor_id: string;
-}
-
 const Profile = () => {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('personal');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [favorites, setFavorites] = useState<Favorite[]>([]);
   const { notifications, markAsRead, refreshNotifications } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [allFoodItems, setAllFoodItems] = useState<FoodItem[]>([]);
@@ -82,7 +73,7 @@ const Profile = () => {
 
     const syncFromHash = () => {
       const hash = window.location.hash.replace('#', '') as TabType;
-      const allowed: TabType[] = ["personal","orders","favorites","notifications"];
+      const allowed: TabType[] = ["personal","orders","notifications"];
       setActiveTab(allowed.includes(hash) ? hash : 'personal');
     };
     syncFromHash();
@@ -90,47 +81,56 @@ const Profile = () => {
 
     loadVendorsAndFoodItems();
     fetchOrders();
-    fetchFavorites();
 
     return () => window.removeEventListener('hashchange', syncFromHash);
   }, [user, router]);
 
-  useEffect(() => {
-    if (activeTab === "favorites" && user) {
-      loadVendorsAndFoodItems();
-      fetchFavorites();
+  const loadVendorsAndFoodItems = async () => {
+    try {
+      const vendorsRes = await fetch('/api/vendors');
+      const vendorsData = await vendorsRes.json();
+      const vendors: Vendor[] = Array.isArray(vendorsData) ? vendorsData : [];
+      setAllVendors(vendors);
+
+      const itemsPromises = vendors.map(async (v) => {
+        const menuRes = await fetch(`/api/vendors/${v.id}/menu`);
+        const menuData = await menuRes.json();
+        return Array.isArray(menuData) ? menuData : [];
+      });
+      const allMenus = await Promise.all(itemsPromises);
+      setAllFoodItems(allMenus.flat());
+    } catch (err) {
+      console.error(err);
+      setAllVendors([]);
+      setAllFoodItems([]);
     }
-  }, [activeTab, user]);
-
-  const loadVendorsAndFoodItems = () => {
-    const storedVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    setAllVendors(storedVendors);
-
-    const allItems: FoodItem[] = [];
-    storedVendors.forEach((vendor: Vendor) => {
-      const vendorMenu = JSON.parse(localStorage.getItem(`vendorMenu_${vendor.id}`) || "[]");
-      allItems.push(...vendorMenu);
-    });
-    setAllFoodItems(allItems);
   };
 
   const fetchOrders = async () => {
     if (!user) return;
 
     try {
-      const res = await fetch(`${window.location.origin}/api/orders?status=completed`, { cache: 'no-store' });
+      const res = await fetch(`/api/orders?status=completed`, { cache: 'no-store' });
+
       if (!res.ok) {
         const errText = await res.text();
         console.error('Orders API failed:', errText);
-        throw new Error('Failed to fetch orders');
+        setOrders([]);
+        return;
       }
+
       const data = await res.json();
+
       const list: any[] = Array.isArray(data.orders) ? data.orders : [];
       const filtered = list.filter((o: any) => o.customerId?.email === user.email);
       const mappedOrders: Order[] = filtered.map((order: any) => ({
         id: order._id?.toString?.() || order.id,
         vendor_name: order.vendorId?.name || 'Unknown Vendor',
-        items: (order.items || []).map((item: any) => ({ name: item.name, quantity: item.quantity, price: item.price })),
+        items: (order.items || []).map((item: any) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
         total: order.totalAmount,
         status: order.status,
         order_time: order.createdAt,
@@ -139,92 +139,8 @@ const Profile = () => {
       setOrders(mappedOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
+      setOrders([]);
     }
-  };
-
-  const fetchFavorites = async () => {
-    if (!user) return;
-    try {
-      const allFavorites: Favorite[] = [];
-      // Get all localStorage keys
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(`favorites_${user.id}_`)) {
-          const vendorId = key.replace(`favorites_${user.id}_`, '');
-          const stored = JSON.parse(localStorage.getItem(key) || '[]');
-          if (Array.isArray(stored)) {
-            stored.forEach((fav: any) => {
-              if (fav.food_item_id) {
-                allFavorites.push({
-                  id: `${vendorId}_${fav.food_item_id}`, 
-                  food_item_id: fav.food_item_id,
-                  vendor_id: vendorId,
-                });
-              }
-            });
-          }
-        }
-      }
-      setFavorites(allFavorites);
-    } catch (error) {
-      console.error("Error fetching favorites:", error);
-      setFavorites([]);
-    }
-  };
-
-  const handleRemoveFavorite = async (favoriteId: string) => {
-    try {
-      if (!user) return;
-      const parts = favoriteId.split('_');
-      if (parts.length < 2) return;
-      const vendorId = parts[0];
-      const foodItemId = parts.slice(1).join('_');
-      
-      const key = `favorites_${user.id}_${vendorId}`;
-      const stored = JSON.parse(localStorage.getItem(key) || '[]');
-      const next = (Array.isArray(stored) ? stored : []).filter((f: any) => f.food_item_id !== foodItemId);
-      localStorage.setItem(key, JSON.stringify(next));
-      toast.success("Removed from favorites");
-      fetchFavorites();
-    } catch (error) {
-      console.error("Error removing favorite:", error);
-      toast.error("Failed to remove favorite");
-    }
-  };
-
-  const handleAddToCart = (item: FoodItem, vendorName: string) => {
-    const existingCart: CartItem[] = JSON.parse(
-      localStorage.getItem(`cart_${user?.id}`) || "[]"
-    );
-
-    const existingItem = existingCart.find((ci) => ci.foodItem.id === item.id);
-
-    if (existingItem) {
-      const updatedCart = existingCart.map((ci) =>
-        ci.foodItem.id === item.id
-          ? { ...ci, quantity: ci.quantity + 1 }
-          : ci
-      );
-      localStorage.setItem(`cart_${user?.id}`, JSON.stringify(updatedCart));
-    } else {
-      const newCart = [
-        ...existingCart,
-        {
-          foodItem: item,
-          quantity: 1,
-          vendorName: vendorName,
-        },
-      ];
-      localStorage.setItem(`cart_${user?.id}`, JSON.stringify(newCart));
-    }
-
-    toast.success(`Added ${item.name} to cart`, {
-      description: `$${item.price.toFixed(2)}`,
-      action: {
-        label: "View Cart",
-        onClick: () => router.push("/home"),
-      },
-    });
   };
 
   const handleSignOut = async () => {
@@ -235,7 +151,6 @@ const Profile = () => {
   const tabs = [
     { id: "personal" as TabType, label: "Personal Info", icon: User },
     { id: "orders" as TabType, label: "Order History", icon: History },
-    { id: "favorites" as TabType, label: "Favorites", icon: Heart },
     { id: "notifications" as TabType, label: "Notifications", icon: Bell },
   ];
 
@@ -338,21 +253,6 @@ const Profile = () => {
                     notifications={notifications as any}
                     onRefresh={refreshNotifications}
                     onMarkRead={markAsRead}
-                  />
-                )}
-
-                {activeTab === "favorites" && (
-                  <FavoritesSection
-                    favorites={favorites}
-                    allFoodItems={allFoodItems}
-                    allVendors={allVendors}
-                    onRefresh={() => {
-                      loadVendorsAndFoodItems();
-                      fetchFavorites();
-                    }}
-                    onRemove={handleRemoveFavorite}
-                    onAddToCart={handleAddToCart}
-                    onBrowseMenu={() => router.push("/")}
                   />
                 )}
               </motion.div>
