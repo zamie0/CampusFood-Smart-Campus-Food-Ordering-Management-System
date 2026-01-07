@@ -100,7 +100,6 @@ const AdminDashboard = () => {
     const vendors = JSON.parse(localStorage.getItem("approvedVendors") || "[]");
     setApprovedVendors(vendors);
 
-    // Load student verification requests
     await loadStudentVerifications();
   }, [loadStudentVerifications]);
 
@@ -112,8 +111,7 @@ const AdminDashboard = () => {
     }
 
     loadData();
-    
-    // Poll for updates every 30 seconds
+
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [router, loadData]);
@@ -326,30 +324,11 @@ const AdminDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col mt-1">
         {/* Header */}
-        <header className="h-16 border-b border-border bg-card px-6 flex items-center justify-between">
+        <header className="border-b border-border bg-card px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-foreground capitalize">{activeTab}</h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search..." 
-                className="pl-9 w-64"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              {pendingRequests.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                  {pendingRequests.length}
-                </span>
-              )}
-            </Button>
           </div>
         </header>
 
