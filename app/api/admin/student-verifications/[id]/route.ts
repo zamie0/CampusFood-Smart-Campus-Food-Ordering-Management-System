@@ -7,8 +7,9 @@ const Profile = (async () => {
   return (mod as any).default || (mod as any);
 })();
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const status = body?.status;
     if (!['pending', 'verified', 'declined'].includes(status)) {
@@ -17,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     await connectDB();
     const ProfileModel = await Profile;
-    await ProfileModel.updateOne({ _id: params.id }, { $set: { student_id_verified: status } });
+    await ProfileModel.updateOne({ _id: id }, { $set: { student_id_verified: status } });
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

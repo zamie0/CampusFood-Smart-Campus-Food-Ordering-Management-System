@@ -185,6 +185,20 @@ const VendorDashboard = () => {
     toast.success("Store image updated!");
   };
 
+  const handleSaveChanges = () => {
+    const updatedVendor = { ...vendor, phone, description };
+    setVendor(updatedVendor);
+    localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
+    
+    // Update in registeredVendors for customer view
+    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
+    const updatedVendors = registeredVendors.map((v: any) => 
+      v.id === vendor?.id ? { ...v, phone, description } : v
+    );
+    localStorage.setItem("registeredVendors", JSON.stringify(updatedVendors));
+    toast.success("Store details updated!");
+  };
+
   const handleAddMenuItem = async () => {
     if (!newItem.name || !newItem.price) {
       toast.error("Please fill in required fields");

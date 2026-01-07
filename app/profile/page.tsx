@@ -65,11 +65,8 @@ interface Order {
 
 interface Favorite {
   id: string;
-  name: string;
-  description: string;
-  rating: number;
-  cuisine: string;
-  image: string;
+  food_item_id: string;
+  vendor_id: string;
 }
 
 const Profile = () => {
@@ -147,7 +144,7 @@ const Profile = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: user.email,
-            full_name: user.user_metadata?.full_name || null,
+            full_name: user.fullName || null,
             notifications_enabled: true,
             promo_notifications: true,
             order_notifications: true,
@@ -204,8 +201,27 @@ const Profile = () => {
   const fetchFavorites = async () => {
     if (!user) return;
     try {
-      const stored = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || '[]');
-      setFavorites(Array.isArray(stored) ? stored : []);
+      const allFavorites: Favorite[] = [];
+      // Get all localStorage keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`favorites_${user.id}_`)) {
+          const vendorId = key.replace(`favorites_${user.id}_`, '');
+          const stored = JSON.parse(localStorage.getItem(key) || '[]');
+          if (Array.isArray(stored)) {
+            stored.forEach((fav: any) => {
+              if (fav.food_item_id) {
+                allFavorites.push({
+                  id: `${vendorId}_${fav.food_item_id}`, // Create unique id
+                  food_item_id: fav.food_item_id,
+                  vendor_id: vendorId,
+                });
+              }
+            });
+          }
+        }
+      }
+      setFavorites(allFavorites);
     } catch (error) {
       console.error("Error fetching favorites:", error);
       setFavorites([]);
@@ -292,9 +308,16 @@ const Profile = () => {
   const handleRemoveFavorite = async (favoriteId: string) => {
     try {
       if (!user) return;
-      const stored = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || '[]');
-      const next = (Array.isArray(stored) ? stored : []).filter((f: any) => f.id !== favoriteId);
-      localStorage.setItem(`favorites_${user.id}`, JSON.stringify(next));
+      // Parse favoriteId which is in format "vendorId_food_item_id"
+      const parts = favoriteId.split('_');
+      if (parts.length < 2) return;
+      const vendorId = parts[0];
+      const foodItemId = parts.slice(1).join('_'); // In case food_item_id contains underscores
+      
+      const key = `favorites_${user.id}_${vendorId}`;
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      const next = (Array.isArray(stored) ? stored : []).filter((f: any) => f.food_item_id !== foodItemId);
+      localStorage.setItem(key, JSON.stringify(next));
       toast.success("Removed from favorites");
       fetchFavorites();
     } catch (error) {
