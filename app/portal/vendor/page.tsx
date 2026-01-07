@@ -2,15 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Eye,
-  EyeOff,
-  ChefHat,
-  Utensils,
-  ArrowLeft,
-  Store,
-  CheckCircle,
-} from "lucide-react";
+import { Eye, EyeOff, ChefHat, Utensils, ArrowLeft, Store, CheckCircle, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +29,9 @@ const VendorPortalAuth = () => {
     phone: "",
   });
 
+  const [vendor, setVendor] = useState<any>(null);
+  const [token, setToken] = useState<string | null>(null);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) {
@@ -45,33 +40,27 @@ const VendorPortalAuth = () => {
     }
 
     setLoading(true);
-
     try {
       const response = await fetch('/api/vendors/auth', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
       });
-
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("vendorToken", data.token);
-        localStorage.setItem("currentVendor", JSON.stringify(data.vendor));
+        // Store in state instead of localStorage
+        setToken(data.token);
+        setVendor(data.vendor);
+
         toast.success("Vendor login successful!");
         setTimeout(() => router.push("/vendor"), 600);
       } else {
-        if (data.error === 'Account not approved or suspended') {
-          toast.error("Your registration is still pending admin approval");
-        } else {
-          toast.error(data.error || "Invalid credentials");
-        }
+        toast.error(data.error || "Invalid credentials");
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error("Login failed. Please try again.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Login failed");
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
+// --- Sub-schemas ---
 const LocationSchema = new mongoose.Schema(
   {
     address: { type: String },
@@ -11,9 +12,9 @@ const LocationSchema = new mongoose.Schema(
 
 const HoursSchema = new mongoose.Schema(
   {
-    day: { type: String }, // e.g., Mon, Tue
-    open: { type: String }, // e.g., 09:00
-    close: { type: String }, // e.g., 17:00
+    day: { type: String }, 
+    open: { type: String }, 
+    close: { type: String }, 
     closed: { type: Boolean, default: false },
   },
   { _id: false }
@@ -27,17 +28,17 @@ const FoodItemSchema = new mongoose.Schema(
     available: { type: Boolean, default: true },
     tags: [{ type: String }],
     image: { type: String },
-    // status can be used if you want one list with different states
     status: { type: String, enum: ['active', 'pending', 'archived'], default: 'active' },
   },
   { _id: false, timestamps: false }
 );
 
+// --- Main Vendor schema ---
 const VendorSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
-    password: { type: String, required: true }, // Hashed password
+    password: { type: String, required: true }, 
     phone: { type: String },
     categories: [{ type: String }],
     details: { type: String },
@@ -53,6 +54,10 @@ const VendorSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// --- Text index for search ---
 VendorSchema.index({ name: 'text', email: 'text' });
 
-module.exports = mongoose.models.Vendor || mongoose.model('Vendor', VendorSchema);
+// --- Export model (reuse if already exists) ---
+const Vendor = mongoose.models.Vendor || mongoose.model('Vendor', VendorSchema);
+
+export default Vendor;
