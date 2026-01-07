@@ -111,7 +111,7 @@ const PortalAuth = () => {
         >
           <SignedOut>
             <div>
-              <h2 className="text-2xl font-bold">Welcome</h2>
+              <h2 className="text-2xl font-bold">Ready to order ?</h2>
               <p className="text-muted-foreground">
                 Sign in or create an account to continue
               </p>
