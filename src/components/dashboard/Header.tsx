@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search, ShoppingCart, Menu, User, LogIn, Heart, Clock } from "lucide-react";
+import { Bell, Search, ShoppingCart, Menu, User, LogIn, Utensils, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
@@ -69,13 +69,26 @@ const Header = ({ cartItemCount, onCartClick, onMenuClick, onFavoritesClick, onO
             <Menu className="h-5 w-5" />
           </Button>
           
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push("/")}>
-            <div className="w-10 h-10 rounded-xl bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center">
-              <span className="font-extrabold text-sm text-primary">CF</span>
+          <div
+            onClick={() => router.push("/")}
+            className="flex items-center gap-3 cursor-pointer select-none group"
+          >
+            {/* Logo Icon */}
+            <div className="w-10 h-10 rounded-xl bg-primary/15 ring-1 ring-primary/30 
+                            flex items-center justify-center 
+                            transition-all duration-200 
+                            group-hover:bg-primary/25 group-hover:scale-105">
+              <Utensils className="w-5 h-5 text-primary" />
             </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground">CampusFood</h1>
-              <p className="text-xs text-muted-foreground -mt-0.5">Order ahead, skip the queue</p>
+
+            {/* Brand Text */}
+            <div className="hidden sm:flex flex-col leading-tight">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground">
+                CampusFood
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Order ahead, skip the queue
+              </p>
             </div>
           </div>
         </div>
