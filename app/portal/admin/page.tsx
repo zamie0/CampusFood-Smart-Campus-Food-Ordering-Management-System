@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import bcrypt from "bcryptjs"; // optional if you want hashed password
 
 const AdminPortalAuth = () => {
   const router = useRouter();
@@ -23,62 +24,57 @@ const AdminPortalAuth = () => {
   const [loading, setLoading] = useState(false);
   const [remember, setRemember] = useState(false);
 
+  // ✅ Hardcoded admin credentials
+  const ADMIN_EMAIL = "admin@campusfood.com";
+  const ADMIN_PASSWORD = "admin123"; // plain text, or hash with bcrypt if desired
+
   // ✅ Auto-login if remembered
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const savedUser = localStorage.getItem("adminRememberUser");
     const loggedIn = localStorage.getItem("adminLoggedIn");
-    const token = localStorage.getItem("adminToken");
 
     if (savedUser) setAdminUser(savedUser);
 
-    if (loggedIn === "true" && token) {
+    if (loggedIn === "true") {
       toast.success("Welcome back, Admin!");
       router.push("/admin");
     }
   }, [router]);
 
-  const handleLogin = async (e: FormEvent) => {
+  const handleLogin = (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const response = await fetch("/api/admins/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: adminUser.trim(),
-          password: adminPass,
-        }),
-      });
+    setTimeout(() => {
+      // check credentials directly
+      if (
+        adminUser.trim().toLowerCase() === ADMIN_EMAIL &&
+        adminPass === ADMIN_PASSWORD
+      ) {
+        // save localStorage
+        localStorage.setItem("adminToken", "dummy-token");
+        localStorage.setItem(
+          "currentAdmin",
+          JSON.stringify({ email: ADMIN_EMAIL, name: "CampusFood Admin", role: "superadmin" })
+        );
+        localStorage.setItem("adminLoggedIn", "true");
 
-      const data = await response.json();
+        if (remember) {
+          localStorage.setItem("adminRememberUser", adminUser);
+        } else {
+          localStorage.removeItem("adminRememberUser");
+        }
 
-      if (!response.ok) {
-        toast.error(data?.error || "Invalid admin credentials");
-        return;
-      }
-
-      // ✅ Persist login
-      localStorage.setItem("adminToken", data.token);
-      localStorage.setItem("currentAdmin", JSON.stringify(data.admin));
-      localStorage.setItem("adminLoggedIn", "true");
-
-      if (remember) {
-        localStorage.setItem("adminRememberUser", adminUser);
+        toast.success("Admin login successful!");
+        router.push("/admin");
       } else {
-        localStorage.removeItem("adminRememberUser");
+        toast.error("Invalid admin credentials");
       }
 
-      toast.success("Admin login successful!");
-      setTimeout(() => router.push("/admin"), 500);
-    } catch (err) {
-      console.error("Admin login error:", err);
-      toast.error("Login failed. Please try again.");
-    } finally {
       setLoading(false);
-    }
+    }, 500); // fake delay for UX
   };
 
   return (
