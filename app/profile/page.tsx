@@ -114,17 +114,17 @@ const Profile = () => {
     try {
       const res = await fetch('/api/user/profile', { cache: 'no-store' });
       if (res.status === 404) {
-        const createRes = await fetch('/api/user/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: user.email,
-            full_name: user.fullName || null,
-            notifications_enabled: true,
-            promo_notifications: true,
-            order_notifications: true,
-          })
-        });
+      const createRes = await fetch('/api/user/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          fullName: user.fullName || null,
+          notificationsEnabled: true,
+          promoNotifications: true,
+          orderNotifications: true,
+        })
+      });
         if (!createRes.ok) throw new Error('Failed to create profile');
         const created = await createRes.json();
         setProfile(created);
@@ -136,11 +136,11 @@ const Profile = () => {
       } else if (res.ok) {
         const data = await res.json();
         setProfile(data);
-        setFullName(data.full_name || "");
-        setStudentId(data.student_id || "");
-        setNotificationsEnabled(data.notifications_enabled ?? true);
-        setPromoNotifications(data.promo_notifications ?? true);
-        setOrderNotifications(data.order_notifications ?? true);
+        setFullName(data.fullName || "");
+        setStudentId(data.studentId || ""); 
+        setNotificationsEnabled(data.notificationsEnabled ?? true);
+        setPromoNotifications(data.promoNotifications ?? true);
+        setOrderNotifications(data.orderNotifications ?? true);
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -244,13 +244,13 @@ const Profile = () => {
       const studentIdChanged = studentId !== currentStudentId;
 
       const updatePayload: any = {
-        full_name: fullName || null,
-        student_id: studentId || null,
-        notifications_enabled: notificationsEnabled,
-        promo_notifications: promoNotifications,
-        order_notifications: orderNotifications,
+        fullName: fullName || null,
+        studentId: studentId || null,
+        notificationsEnabled: notificationsEnabled,
+        promoNotifications: promoNotifications,
+        orderNotifications: orderNotifications,
       };
-      if (studentIdChanged && studentId) updatePayload.student_id_verified = "pending";
+      if (studentIdChanged && studentId) updatePayload.studentIdVerified = "pending";
 
       const res = await fetch('/api/user/profile', {
         method: 'PUT',
