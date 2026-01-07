@@ -2,18 +2,12 @@
 
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Eye,
-  EyeOff,
-  Shield,
-  ArrowLeft,
-} from "lucide-react";
+import { Eye, EyeOff, Shield, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import bcrypt from "bcryptjs"; // optional if you want hashed password
 
 const AdminPortalAuth = () => {
   const router = useRouter();
@@ -24,22 +18,19 @@ const AdminPortalAuth = () => {
   const [loading, setLoading] = useState(false);
   const [remember, setRemember] = useState(false);
 
-  // ✅ Hardcoded admin credentials
   const ADMIN_EMAIL = "admin@campusfood.com";
-  const ADMIN_PASSWORD = "admin123"; // plain text, or hash with bcrypt if desired
+  const ADMIN_PASSWORD = "admin123"; 
 
-  // ✅ Auto-login if remembered
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const token = localStorage.getItem("adminToken");
     const savedUser = localStorage.getItem("adminRememberUser");
-    const loggedIn = localStorage.getItem("adminLoggedIn");
 
     if (savedUser) setAdminUser(savedUser);
 
-    if (loggedIn === "true") {
-      toast.success("Welcome back, Admin!");
-      router.push("/admin");
+    if (token) {
+      router.replace("/admin"); 
     }
   }, [router]);
 
