@@ -4,10 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
-  ShoppingBag, DollarSign, TrendingUp, Clock, Package,
-  CheckCircle, LogOut, Bell, Settings, Menu, Plus,
-  ChefHat, Eye, Edit, Trash2, BarChart3, Utensils,
-  Star, Users, Calendar, AlertCircle, Upload, Image
+  ShoppingBag, DollarSign, TrendingUp, Clock, Package,LogOut, Bell, Settings, Menu, Plus,
+  ChefHat, Eye, Edit, Trash2, BarChart3, Utensils, AlertCircle, Image
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,24 +76,20 @@ const VendorDashboard = () => {
 
     const currentVendor = JSON.parse(localStorage.getItem("currentVendor") || "{}");
     setVendor(currentVendor);
-    
-    // Check if vendor is approved
+
     if (currentVendor.status !== 'active') {
-      // Start polling for status updates
       const pollStatus = async () => {
         try {
           const response = await fetch(`/api/vendors/${currentVendor.id}`);
           if (response.ok) {
             const vendorData = await response.json();
             if (vendorData.status === 'active') {
-              // Vendor approved! Update local storage and reload
               const updatedVendor = { ...currentVendor, status: 'active' };
               localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
               setVendor(updatedVendor);
               toast.success("Your account has been approved! Welcome to the platform.");
               loadData(currentVendor.id);
             } else if (vendorData.status === 'suspended') {
-              // Vendor rejected
               toast.error("Your registration has been rejected. Please contact support.");
               handleLogout();
             }
@@ -104,21 +98,16 @@ const VendorDashboard = () => {
           console.error('Error polling status:', error);
         }
       };
-
-      // Poll every 30 seconds
       const interval = setInterval(pollStatus, 30000);
       return () => clearInterval(interval);
     }
     
     loadData(currentVendor.id);
-
-    // Load store open status from vendor data
     setIsStoreOpen(currentVendor.isOnline ?? true);
   }, [router]);
 
   const loadData = async (vendorId: string) => {
     try {
-      // Fetch vendor data including menu
       const vendorResponse = await fetch(`/api/vendors/${vendorId}`);
       if (vendorResponse.ok) {
         const vendorData = await vendorResponse.json();
@@ -126,7 +115,6 @@ const VendorDashboard = () => {
         setIsStoreOpen(vendorData.isOnline ?? true);
       }
 
-      // Fetch orders for this vendor
       const ordersResponse = await fetch(`/api/orders?vendorId=${vendorId}`);
       if (ordersResponse.ok) {
         const ordersData = await ordersResponse.json();
@@ -162,12 +150,12 @@ const VendorDashboard = () => {
         toast.success(newStatus ? "Store is now open!" : "Store is now closed");
       } else {
         toast.error('Failed to update store status');
-        setIsStoreOpen(!newStatus); // Revert on error
+        setIsStoreOpen(!newStatus); 
       }
     } catch (error) {
       console.error('Error updating store status:', error);
       toast.error('Failed to update store status');
-      setIsStoreOpen(!newStatus); // Revert on error
+      setIsStoreOpen(!newStatus);
     }
   };
 
@@ -176,7 +164,6 @@ const VendorDashboard = () => {
     setVendor(updatedVendor);
     localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
     
-    // Update in registeredVendors for customer view
     const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
     const updatedVendors = registeredVendors.map((v: any) => 
       v.id === vendor?.id ? { ...v, image: imageData } : v
@@ -190,7 +177,6 @@ const VendorDashboard = () => {
     setVendor(updatedVendor);
     localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
     
-    // Update in registeredVendors for customer view
     const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
     const updatedVendors = registeredVendors.map((v: any) => 
       v.id === vendor?.id ? { ...v, phone, description } : v
@@ -222,7 +208,6 @@ const VendorDashboard = () => {
     const updatedMenu = [...menuItems, item];
     setMenuItems(updatedMenu);
 
-    // Update in database
     try {
       await fetch(`/api/vendors/${vendor?.id}`, {
         method: 'PATCH',
@@ -235,7 +220,7 @@ const VendorDashboard = () => {
     } catch (error) {
       console.error('Error adding menu item:', error);
       toast.error('Failed to add menu item');
-      setMenuItems(menuItems); // Revert
+      setMenuItems(menuItems); 
       return;
     }
 
@@ -261,7 +246,7 @@ const VendorDashboard = () => {
     } catch (error) {
       console.error('Error updating availability:', error);
       toast.error('Failed to update availability');
-      setMenuItems(menuItems); // Revert
+      setMenuItems(menuItems);
     }
   };
 
@@ -281,7 +266,7 @@ const VendorDashboard = () => {
     } catch (error) {
       console.error('Error deleting item:', error);
       toast.error('Failed to delete item');
-      setMenuItems(menuItems); // Revert
+      setMenuItems(menuItems);
     }
   };
 
@@ -303,7 +288,7 @@ const VendorDashboard = () => {
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('Failed to update order status');
-      setOrders(orders); // Revert
+      setOrders(orders); 
     }
   };
 
@@ -326,7 +311,6 @@ const VendorDashboard = () => {
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
-  // Show pending approval screen if vendor is not approved
   if (vendor && vendor.status !== 'active') {
     return (
       <div className="h-screen bg-background flex items-center justify-center">
@@ -410,21 +394,11 @@ const VendorDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col mt-1">
         {/* Header */}
-        <header className="h-16 border-b border-border bg-card px-6 flex items-center justify-between">
+        <header className="border-b border-border bg-card px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-foreground capitalize">{activeTab}</h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              {stats.pendingOrders > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                  {stats.pendingOrders}
-                </span>
-              )}
-            </Button>
           </div>
         </header>
 

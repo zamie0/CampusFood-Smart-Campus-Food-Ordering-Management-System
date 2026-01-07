@@ -63,6 +63,23 @@ const Profile = () => {
       router.push("/");
       return;
     }
+
+    const profileData: Profile = {
+      id: user.id,
+      fullName: user.fullName || null,
+      email: user.email || null,
+      avatarUrl: user.avatarUrl || null,
+      notificationsEnabled: user.notificationsEnabled ?? true,
+      promoNotifications: user.promoNotifications ?? true,
+      orderNotifications: user.orderNotifications ?? true,
+    };
+
+    setProfile(profileData);
+    setFullName(profileData.fullName || "");
+    setNotificationsEnabled(profileData.notificationsEnabled ?? true);
+    setPromoNotifications(profileData.promoNotifications ?? true);
+    setOrderNotifications(profileData.orderNotifications ?? true);
+
     const syncFromHash = () => {
       const hash = window.location.hash.replace('#', '') as TabType;
       const allowed: TabType[] = ["personal","orders","favorites","notifications"];
@@ -101,8 +118,12 @@ const Profile = () => {
     if (!user) return;
 
     try {
-      const res = await fetch(`/api/orders?status=completed`, { cache: 'no-store' });
-      if (!res.ok) throw new Error('Failed to fetch orders');
+      const res = await fetch(`${window.location.origin}/api/orders?status=completed`, { cache: 'no-store' });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('Orders API failed:', errText);
+        throw new Error('Failed to fetch orders');
+      }
       const data = await res.json();
       const list: any[] = Array.isArray(data.orders) ? data.orders : [];
       const filtered = list.filter((o: any) => o.customerId?.email === user.email);
@@ -252,6 +273,7 @@ const Profile = () => {
                     )}
                   </div>
                 </div>
+                <p className="text-sm font-medium">{profile?.fullName || 'User'}</p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
               </div>
 

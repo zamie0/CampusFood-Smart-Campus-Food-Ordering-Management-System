@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const newProfile = {
           clerkId: clerkUser.id,
           email: clerkUser.primaryEmailAddress?.emailAddress || '',
-          fullName: clerkUser.fullName || '',
+          fullName: clerkUser.fullName || `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || '',
           avatarUrl: clerkUser.imageUrl,
           notificationsEnabled: true,
           promoNotifications: true,
