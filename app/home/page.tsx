@@ -10,7 +10,6 @@ import VendorCard from "@/components/dashboard/VendorCard";
 import VendorDetailModal from "@/components/dashboard/VendorDetailModal";
 import CartSheet from "@/components/dashboard/CartSheet";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   CartItem,
   FoodItem,
@@ -30,11 +29,20 @@ const Index = () => {
   const [selectedCuisine, setSelectedCuisine] = useState("All");
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
 
-  // Load vendors from localStorage (created by vendor registration)
+  // Load vendors from API
   useEffect(() => {
-    const loadVendors = () => {
-      const storedVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-      setVendors(storedVendors);
+    const loadVendors = async () => {
+      try {
+        const response = await fetch('/api/vendors');
+        if (response.ok) {
+          const vendorsData = await response.json();
+          setVendors(vendorsData.items || []);
+        } else {
+          console.error('Failed to load vendors');
+        }
+      } catch (error) {
+        console.error('Error loading vendors:', error);
+      }
     };
 
     const loadActiveOrders = () => {
@@ -45,10 +53,7 @@ const Index = () => {
 
     loadVendors();
     loadActiveOrders();
-    // Listen for storage changes
-    window.addEventListener("storage", loadVendors);
-    return () => window.removeEventListener("storage", loadVendors);
-  }, []);
+  }, [user?.id]);
 
   // Get unique cuisines from vendors
   const cuisineFilters = ["All", ...new Set(vendors.map(v => v.cuisine).filter(Boolean))];
@@ -204,26 +209,7 @@ const Index = () => {
         {/* Hero Section */}
         <section className="bg-gradient-to-b from-primary/5 to-background px-4 pt-4 pb-6 md:px-6 md:pt-6 md:pb-8">
           <div className="container">
-            <WelcomeHero userName={userName} activeOrders={activeOrdersCount} />
-
-            {/* Search Bar - FoodPanda style */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="mt-6"
-            >
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search for restaurants or cuisines..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 h-12 md:h-14 rounded-2xl bg-card border-border shadow-md text-base placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-            </motion.div>
+            <WelcomeHero fullName={userName} activeOrders={activeOrdersCount} ordersThisMonth={0} totalSaved={0} />
           </div>
         </section>
 
@@ -273,7 +259,7 @@ const Index = () => {
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 lg:gap-5">
                 {filteredVendors.map((vendor, index) => (
                   <VendorCard
-                    key={vendor.id}
+                    key={`${(vendor as any).id || (vendor as any)._id || vendor.name || 'vendor'}-${index}`}
                     vendor={vendor}
                     onClick={() => handleVendorClick(vendor)}
                     index={index}

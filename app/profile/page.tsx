@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/contexts/NotificationContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import PersonalSection from "./sections/Personal";
+import OrdersSection from "./sections/Orders";
+import FavoritesSection from "./sections/Favorites";
+import NotificationsSection from "./sections/Notifications";
+import SettingsSection from "./sections/Settings";
 import {
   User,
   Mail,
@@ -21,7 +23,6 @@ import {
   Bell,
   Shield,
   ChevronLeft,
-  ChevronRight,
   Save,
   LogOut,
   ShoppingBag,
@@ -29,10 +30,17 @@ import {
   RefreshCw,
   Clock,
   Trash2,
+  Tag,
+  Megaphone,
+  Store,
+  Star,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
-import { foodItems, vendors } from "@/data/mockData";
+import { FoodItem, Vendor, CartItem } from "@/data/mockData";
 
-type TabType = "personal" | "orders" | "favorites" | "settings" | "security";
+type TabType = "personal" | "orders" | "favorites" | "notifications" | "settings" | "security";
 
 interface Profile {
   id: string;
@@ -40,6 +48,7 @@ interface Profile {
   email: string | null;
   avatar_url: string | null;
   student_id: string | null;
+  student_id_verified?: "pending" | "verified" | "declined" | null;
   notifications_enabled: boolean;
   promo_notifications: boolean;
   order_notifications: boolean;
@@ -61,13 +70,17 @@ interface Favorite {
 }
 
 const Profile = () => {
-  const { user, updateProfile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>("personal");
+  const [activeTab, setActiveTab] = useState<TabType>('personal');
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const { notifications, markAsRead, refreshNotifications } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [allFoodItems, setAllFoodItems] = useState<FoodItem[]>([]);
+  const [allVendors, setAllVendors] = useState<Vendor[]>([]);
 
   // Form state
   const [fullName, setFullName] = useState("");
@@ -81,50 +94,192 @@ const Profile = () => {
       router.push("/");
       return;
     }
+    // Sync from hash and set listeners
+    const syncFromHash = () => {
+      const hash = window.location.hash.replace('#', '') as TabType;
+      const allowed: TabType[] = ["personal","orders","favorites","notifications","settings","security"];
+      setActiveTab(allowed.includes(hash) ? hash : 'personal');
+    };
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
 
-    // Initialize form with user data
-    setFullName(user.fullName || "");
-    setStudentId(user.studentId || "");
-    setNotificationsEnabled(user.notificationsEnabled ?? true);
-    setPromoNotifications(user.promoNotifications ?? true);
-    setOrderNotifications(user.orderNotifications ?? true);
-
+    loadVendorsAndFoodItems();
+    fetchProfile();
     fetchOrders();
     fetchFavorites();
-    setLoading(false);
+
+    return () => window.removeEventListener('hashchange', syncFromHash);
   }, [user, router]);
+
+  // Reload data when favorites tab is active
+  useEffect(() => {
+    if (activeTab === "favorites" && user) {
+      loadVendorsAndFoodItems();
+      fetchFavorites();
+    }
+  }, [activeTab, user]);
+
+  const loadVendorsAndFoodItems = () => {
+    // Load vendors from localStorage
+    const storedVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
+    setAllVendors(storedVendors);
+
+    // Load all food items from all vendor menus
+    const allItems: FoodItem[] = [];
+    storedVendors.forEach((vendor: Vendor) => {
+      const vendorMenu = JSON.parse(localStorage.getItem(`vendorMenu_${vendor.id}`) || "[]");
+      allItems.push(...vendorMenu);
+    });
+    setAllFoodItems(allItems);
+  };
+
+  const fetchProfile = async () => {
+    if (!user) return;
+
+    try {
+      const res = await fetch('/api/user/profile', { cache: 'no-store' });
+      if (res.status === 404) {
+        const createRes = await fetch('/api/user/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            full_name: user.user_metadata?.full_name || null,
+            notifications_enabled: true,
+            promo_notifications: true,
+            order_notifications: true,
+          })
+        });
+        if (!createRes.ok) throw new Error('Failed to create profile');
+        const created = await createRes.json();
+        setProfile(created);
+        setFullName(created.full_name || "");
+        setStudentId(created.student_id || "");
+        setNotificationsEnabled(created.notifications_enabled ?? true);
+        setPromoNotifications(created.promo_notifications ?? true);
+        setOrderNotifications(created.order_notifications ?? true);
+      } else if (res.ok) {
+        const data = await res.json();
+        setProfile(data);
+        setFullName(data.full_name || "");
+        setStudentId(data.student_id || "");
+        setNotificationsEnabled(data.notifications_enabled ?? true);
+        setPromoNotifications(data.promo_notifications ?? true);
+        setOrderNotifications(data.order_notifications ?? true);
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchOrders = async () => {
     if (!user) return;
 
-    // TODO: Implement MongoDB orders fetching
-    // For now, set empty orders
-    setOrders([]);
+    try {
+      const res = await fetch(`/api/orders?status=completed`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch orders');
+      const data = await res.json();
+      const list: any[] = Array.isArray(data.orders) ? data.orders : [];
+      const filtered = list.filter((o: any) => o.customerId?.email === user.email);
+      const mappedOrders: Order[] = filtered.map((order: any) => ({
+        id: order._id?.toString?.() || order.id,
+        vendor_name: order.vendorId?.name || 'Unknown Vendor',
+        items: (order.items || []).map((item: any) => ({ name: item.name, quantity: item.quantity, price: item.price })),
+        total: order.totalAmount,
+        status: order.status,
+        order_time: order.createdAt,
+      }));
+
+      setOrders(mappedOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    }
   };
 
   const fetchFavorites = async () => {
     if (!user) return;
-
-    // TODO: Implement MongoDB favorites fetching
-    // For now, set empty favorites
-    setFavorites([]);
+    try {
+      const stored = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || '[]');
+      setFavorites(Array.isArray(stored) ? stored : []);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      setFavorites([]);
+    }
   };
+
+  /**
+   * Notify admin (via localStorage) that a new student ID is waiting for approval.
+   * This acts as a lightweight signal until a dedicated notifications table exists.
+   */
+  const notifyAdminStudentVerification = (studentIdValue: string) => {
+    const existing =
+      JSON.parse(localStorage.getItem("adminNotifications") || "[]") || [];
+
+    const newNotification = {
+      id: `student_${Date.now()}`,
+      type: "student_verification",
+      title: "New Student ID submitted",
+      message: `${fullName || user?.email || "A student"} submitted ID ${studentIdValue} for verification.`,
+      time: new Date().toISOString(),
+      isRead: false,
+      userId: user?.id,
+      studentId: studentIdValue,
+    };
+
+    localStorage.setItem(
+      "adminNotifications",
+      JSON.stringify([newNotification, ...existing])
+    );
+
+    // Inform other tabs (e.g., admin dashboard) about the update
+    window.dispatchEvent(new Event("storage"));
+  };
+
 
   const handleSaveProfile = async () => {
     if (!user) return;
     setSaving(true);
 
     try {
-      await updateProfile({
-        fullName,
-        studentId,
-        notificationsEnabled,
-        promoNotifications,
-        orderNotifications,
+      if (profile?.student_id_verified === "verified" && studentId !== (profile.student_id || "")) {
+        toast.error("Verified student IDs cannot be changed.");
+        setStudentId(profile.student_id || "");
+        setSaving(false);
+        return;
+      }
+
+      const currentStudentId = profile?.student_id || "";
+      const studentIdChanged = studentId !== currentStudentId;
+
+      const updatePayload: any = {
+        full_name: fullName || null,
+        student_id: studentId || null,
+        notifications_enabled: notificationsEnabled,
+        promo_notifications: promoNotifications,
+        order_notifications: orderNotifications,
+      };
+      if (studentIdChanged && studentId) updatePayload.student_id_verified = "pending";
+
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatePayload)
       });
 
-      toast.success("Profile updated successfully");
+      if (!res.ok) throw new Error('Failed to update profile');
+
+      if (studentIdChanged && studentId) {
+        notifyAdminStudentVerification(studentId);
+        toast.success("This student ID was sent to the admin for approval");
+      } else {
+        toast.success("Profile updated successfully");
+      }
+
+      await fetchProfile();
     } catch (error) {
+      console.error("Error saving profile:", error);
       toast.error("Failed to save profile");
     } finally {
       setSaving(false);
@@ -132,9 +287,56 @@ const Profile = () => {
   };
 
   const handleRemoveFavorite = async (favoriteId: string) => {
-    // TODO: Implement MongoDB favorite removal
-    toast.success("Removed from favorites");
-    fetchFavorites();
+    try {
+      if (!user) return;
+      const stored = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || '[]');
+      const next = (Array.isArray(stored) ? stored : []).filter((f: any) => f.id !== favoriteId);
+      localStorage.setItem(`favorites_${user.id}`, JSON.stringify(next));
+      toast.success("Removed from favorites");
+      fetchFavorites();
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      toast.error("Failed to remove favorite");
+    }
+  };
+
+  const handleAddToCart = (item: FoodItem, vendorName: string) => {
+    // Load existing cart from localStorage
+    const existingCart: CartItem[] = JSON.parse(
+      localStorage.getItem(`cart_${user?.id}`) || "[]"
+    );
+
+    // Check if item already exists in cart
+    const existingItem = existingCart.find((ci) => ci.foodItem.id === item.id);
+
+    if (existingItem) {
+      // Update quantity
+      const updatedCart = existingCart.map((ci) =>
+        ci.foodItem.id === item.id
+          ? { ...ci, quantity: ci.quantity + 1 }
+          : ci
+      );
+      localStorage.setItem(`cart_${user?.id}`, JSON.stringify(updatedCart));
+    } else {
+      // Add new item
+      const newCart = [
+        ...existingCart,
+        {
+          foodItem: item,
+          quantity: 1,
+          vendorName: vendorName,
+        },
+      ];
+      localStorage.setItem(`cart_${user?.id}`, JSON.stringify(newCart));
+    }
+
+    toast.success(`Added ${item.name} to cart`, {
+      description: `$${item.price.toFixed(2)}`,
+      action: {
+        label: "View Cart",
+        onClick: () => router.push("/home"),
+      },
+    });
   };
 
   const handleSignOut = async () => {
@@ -146,12 +348,13 @@ const Profile = () => {
     { id: "personal" as TabType, label: "Personal Info", icon: User },
     { id: "orders" as TabType, label: "Order History", icon: History },
     { id: "favorites" as TabType, label: "Favorites", icon: Heart },
+    { id: "notifications" as TabType, label: "Notifications", icon: Bell },
     { id: "settings" as TabType, label: "Settings", icon: Settings },
     { id: "security" as TabType, label: "Security", icon: Shield },
   ];
 
-  const getFoodItem = (id: string) => foodItems.find((f) => f.id === id);
-  const getVendor = (id: string) => vendors.find((v) => v.id === id);
+  const getFoodItem = (id: string) => allFoodItems.find((f) => f.id === id);
+  const getVendor = (id: string) => allVendors.find((v) => v.id === id);
 
   if (!user) return null;
 
@@ -160,7 +363,7 @@ const Profile = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-md border-b border-border">
         <div className="container flex items-center h-16 px-4 md:px-6">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
+          <Button variant="ghost" size="icon" onClick={() => router.push("/home")}>
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <h1 className="ml-3 text-lg font-semibold text-foreground">Profile</h1>
@@ -176,9 +379,9 @@ const Profile = () => {
               <div className="text-center mb-6">
                 <div className="relative w-20 h-20 mx-auto mb-4">
                   <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center">
-                    {user?.avatarUrl ? (
+                    {profile?.avatar_url ? (
                       <img
-                        src={user.avatarUrl}
+                        src={profile.avatar_url}
                         alt="Avatar"
                         className="w-full h-full rounded-full object-cover"
                       />
@@ -191,7 +394,7 @@ const Profile = () => {
                   </button>
                 </div>
                 <h2 className="font-semibold text-foreground">
-                  {user?.fullName || "Student"}
+                  {profile?.full_name || "Student"}
                 </h2>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
               </div>
@@ -206,6 +409,7 @@ const Profile = () => {
                         router.push("/security");
                       } else {
                         setActiveTab(tab.id);
+                        window.location.hash = tab.id;
                       }
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
@@ -246,311 +450,57 @@ const Profile = () => {
               >
                 {/* Personal Info */}
                 {activeTab === "personal" && (
-                  <div className="bg-card rounded-2xl border border-border p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-6">
-                      Personal Information
-                    </h3>
-
-                    <div className="grid gap-6">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="fullName">Full Name</Label>
-                          <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="fullName"
-                              value={fullName}
-                              onChange={(e) => setFullName(e.target.value)}
-                              placeholder="Enter your name"
-                              className="pl-10"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email Address</Label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="email"
-                              value={user.email || ""}
-                              disabled
-                              className="pl-10 bg-muted"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="studentId">Student ID</Label>
-                        <div className="relative">
-                          <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="studentId"
-                            value={studentId}
-                            onChange={(e) => setStudentId(e.target.value)}
-                            placeholder="e.g., STU2024001"
-                            className="pl-10"
-                          />
-                        </div>
-                      </div>
-
-                      <Button
-                        variant="warm"
-                        className="w-fit"
-                        onClick={handleSaveProfile}
-                        disabled={saving}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        {saving ? "Saving..." : "Save Changes"}
-                      </Button>
-                    </div>
-                  </div>
+                  <PersonalSection
+                    avatarUrl={profile?.avatar_url}
+                    fullName={fullName}
+                    email={user.email || ''}
+                    studentId={studentId}
+                    studentVerification={profile?.student_id_verified || null}
+                    onChangeStudentId={setStudentId}
+                    saving={saving}
+                    onSave={handleSaveProfile}
+                  />
                 )}
 
                 {/* Order History */}
                 {activeTab === "orders" && (
-                  <div className="bg-card rounded-2xl border border-border p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-lg font-semibold text-foreground">
-                        Order History
-                      </h3>
-                      <Button variant="ghost" size="sm" onClick={fetchOrders}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Refresh
-                      </Button>
-                    </div>
+                  <OrdersSection orders={orders} onRefresh={fetchOrders} />
+                )}
 
-                    {orders.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-                          <ShoppingBag className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <p className="text-muted-foreground">No orders yet</p>
-                        <Button
-                          variant="soft"
-                          className="mt-4"
-                          onClick={() => router.push("/")}
-                        >
-                          Start Ordering
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {orders.map((order) => (
-                          <div
-                            key={order.id}
-                            className="p-4 rounded-xl bg-muted/30 border border-border"
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h4 className="font-medium text-foreground">
-                                  {order.vendor_name}
-                                </h4>
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  <Clock className="h-3 w-3" />
-                                  {new Date(order.order_time).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <Badge
-                                variant={
-                                  order.status === "completed"
-                                    ? "success"
-                                    : order.status === "preparing"
-                                    ? "preparing"
-                                    : "pending"
-                                }
-                              >
-                                {order.status}
-                              </Badge>
-                            </div>
-
-                            <div className="space-y-1 mb-3">
-                              {(order.items as { name: string; quantity: number; price: number }[]).map((item, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex justify-between text-sm"
-                                >
-                                  <span className="text-muted-foreground">
-                                    {item.quantity}x {item.name}
-                                  </span>
-                                  <span className="text-foreground">
-                                    ${(item.price * item.quantity).toFixed(2)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="flex items-center justify-between pt-3 border-t border-border">
-                              <span className="font-semibold text-foreground">
-                                Total: ${Number(order.total).toFixed(2)}
-                              </span>
-                              <Button variant="soft" size="sm">
-                                Reorder
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                {/* Notifications */}
+                {activeTab === "notifications" && (
+                  <NotificationsSection
+                    notifications={notifications as any}
+                    onRefresh={refreshNotifications}
+                    onMarkRead={markAsRead}
+                  />
                 )}
 
                 {/* Favorites */}
                 {activeTab === "favorites" && (
-                  <div className="bg-card rounded-2xl border border-border p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-6">
-                      Saved Favorites
-                    </h3>
-
-                    {favorites.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-                          <Heart className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <p className="text-muted-foreground">
-                          No favorites saved yet
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Browse the menu and save your favorite dishes
-                        </p>
-                        <Button
-                          variant="soft"
-                          className="mt-4"
-                          onClick={() => router.push("/")}
-                        >
-                          Browse Menu
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="grid md:grid-cols-2 gap-4">
-                        {favorites.map((fav) => {
-                          const item = getFoodItem(fav.food_item_id);
-                          const vendor = getVendor(fav.vendor_id);
-                          if (!item) return null;
-
-                          return (
-                            <div
-                              key={fav.id}
-                              className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border"
-                            >
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-20 h-20 rounded-lg object-cover"
-                              />
-                              <div className="flex-1">
-                                <h4 className="font-medium text-foreground text-sm">
-                                  {item.name}
-                                </h4>
-                                <p className="text-xs text-muted-foreground">
-                                  {vendor?.name}
-                                </p>
-                                <p className="text-primary font-semibold mt-1">
-                                  ${item.price.toFixed(2)}
-                                </p>
-                                <div className="flex gap-2 mt-2">
-                                  <Button variant="soft" size="sm" className="h-7 text-xs">
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Add
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs text-destructive hover:text-destructive"
-                                    onClick={() => handleRemoveFavorite(fav.id)}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <FavoritesSection
+                    favorites={favorites}
+                    allFoodItems={allFoodItems}
+                    allVendors={allVendors}
+                    onRefresh={() => { loadVendorsAndFoodItems(); fetchFavorites(); }}
+                    onRemove={handleRemoveFavorite}
+                    onAddToCart={handleAddToCart}
+                    onBrowseMenu={() => router.push('/')}
+                  />
                 )}
 
                 {/* Settings */}
                 {activeTab === "settings" && (
-                  <div className="space-y-6">
-                    {/* Notifications */}
-                    <div className="bg-card rounded-2xl border border-border p-6">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <Bell className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">
-                            Notification Preferences
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Control how you receive alerts
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between py-3 border-b border-border">
-                          <div>
-                            <p className="font-medium text-foreground text-sm">
-                              Enable All Notifications
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Master toggle for all notifications
-                            </p>
-                          </div>
-                          <Switch
-                            checked={notificationsEnabled}
-                            onCheckedChange={setNotificationsEnabled}
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between py-3 border-b border-border">
-                          <div>
-                            <p className="font-medium text-foreground text-sm">
-                              Order Updates
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Get notified when your food is ready
-                            </p>
-                          </div>
-                          <Switch
-                            checked={orderNotifications}
-                            onCheckedChange={setOrderNotifications}
-                            disabled={!notificationsEnabled}
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between py-3">
-                          <div>
-                            <p className="font-medium text-foreground text-sm">
-                              Promotions & Offers
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Receive deals and special offers
-                            </p>
-                          </div>
-                          <Switch
-                            checked={promoNotifications}
-                            onCheckedChange={setPromoNotifications}
-                            disabled={!notificationsEnabled}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="warm"
-                      className="w-fit"
-                      onClick={handleSaveProfile}
-                      disabled={saving}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {saving ? "Saving..." : "Save Settings"}
-                    </Button>
-                  </div>
+                  <SettingsSection
+                    notificationsEnabled={notificationsEnabled}
+                    promoNotifications={promoNotifications}
+                    orderNotifications={orderNotifications}
+                    onChangeNotificationsEnabled={setNotificationsEnabled}
+                    onChangePromo={setPromoNotifications}
+                    onChangeOrder={setOrderNotifications}
+                    saving={saving}
+                    onSave={handleSaveProfile}
+                  />
                 )}
               </motion.div>
             </AnimatePresence>

@@ -14,9 +14,11 @@ interface Notification {
 interface NotificationPanelProps {
   notifications: Notification[];
   onClose: () => void;
+  onMarkAsRead?: (notificationId: string) => void;
+  onViewAll?: () => void;
 }
 
-const NotificationPanel = ({ notifications, onClose }: NotificationPanelProps) => {
+const NotificationPanel = ({ notifications, onClose, onMarkAsRead, onViewAll }: NotificationPanelProps) => {
   const getIcon = (type: string) => {
     switch (type) {
       case 'order':
@@ -53,12 +55,17 @@ const NotificationPanel = ({ notifications, onClose }: NotificationPanelProps) =
         </div>
 
         <div className="max-h-80 overflow-y-auto">
-          {notifications.map((notification) => (
+          {notifications.slice(0, 3).map((notification) => (
             <div
               key={notification.id}
-              className={`p-4 border-b border-border last:border-0 transition-colors hover:bg-muted/50 ${
+              className={`p-4 border-b border-border last:border-0 transition-colors hover:bg-muted/50 cursor-pointer ${
                 !notification.isRead ? 'bg-primary/5' : ''
               }`}
+              onClick={() => {
+                if (!notification.isRead && onMarkAsRead) {
+                  onMarkAsRead(notification.id);
+                }
+              }}
             >
               <div className="flex gap-3">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
@@ -82,7 +89,7 @@ const NotificationPanel = ({ notifications, onClose }: NotificationPanelProps) =
         </div>
 
         <div className="p-3 border-t border-border bg-muted/30">
-          <Button variant="ghost" size="sm" className="w-full text-xs">
+          <Button variant="ghost" size="sm" className="w-full text-xs" onClick={onViewAll}>
             View all notifications
           </Button>
         </div>

@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Star, Clock, MapPin, ArrowLeft, Plus, Minus } from "lucide-react";
+import { X, Star, Clock, MapPin, ArrowLeft, Plus, Minus, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Vendor, FoodItem } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface VendorDetailModalProps {
   vendor: Vendor | null;
@@ -19,7 +21,9 @@ const VendorDetailModal = ({
   onClose,
   onAddToCart,
 }: VendorDetailModalProps) => {
+  const { user } = useAuth();
   const [vendorItems, setVendorItems] = useState<FoodItem[]>([]);
+  const [favorites, setFavorites] = useState<{ food_item_id: string }[]>([]);
 
   // Load menu items from localStorage
   useEffect(() => {
@@ -28,6 +32,41 @@ const VendorDetailModal = ({
       setVendorItems(storedMenu);
     }
   }, [vendor]);
+
+  // Load favorites when modal opens
+  useEffect(() => {
+    if (isOpen && user && vendor) {
+      const storedFavorites = JSON.parse(localStorage.getItem(`favorites_${user.id}_${vendor.id}`) || "[]");
+      setFavorites(storedFavorites);
+    }
+  }, [isOpen, user, vendor]);
+
+  const isFavorite = (foodItemId: string) => {
+    return favorites.some((fav) => fav.food_item_id === foodItemId);
+  };
+
+  const handleToggleFavorite = (item: FoodItem) => {
+    if (!user) {
+      toast.error("Please sign in to add favorites");
+      return;
+    }
+
+    if (!vendor) return;
+
+    const isCurrentlyFavorite = isFavorite(item.id);
+    let newFavorites;
+
+    if (isCurrentlyFavorite) {
+      newFavorites = favorites.filter((fav) => fav.food_item_id !== item.id);
+      toast.success("Removed from favorites");
+    } else {
+      newFavorites = [...favorites, { food_item_id: item.id }];
+      toast.success("Added to favorites");
+    }
+
+    setFavorites(newFavorites);
+    localStorage.setItem(`favorites_${user.id}_${vendor.id}`, JSON.stringify(newFavorites));
+  };
 
   if (!vendor) return null;
 
@@ -180,15 +219,35 @@ const VendorDetailModal = ({
                               <span className="text-lg font-bold text-primary">
                                 ${item.price.toFixed(2)}
                               </span>
-                              <Button
-                                size="sm"
-                                onClick={() => onAddToCart(item)}
-                                disabled={!item.isAvailable}
-                                className="rounded-full h-9 px-4"
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Add
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                {user && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleToggleFavorite(item)}
+                                    className={`h-9 w-9 rounded-full ${
+                                      isFavorite(item.id)
+                                        ? "text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        : "text-muted-foreground hover:text-destructive"
+                                    }`}
+                                  >
+                                    <Heart
+                                      className={`h-4 w-4 ${
+                                        isFavorite(item.id) ? "fill-current" : ""
+                                      }`}
+                                    />
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  onClick={() => onAddToCart(item)}
+                                  disabled={!item.isAvailable}
+                                  className="rounded-full h-9 px-4"
+                                >
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Add
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </motion.div>

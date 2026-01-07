@@ -38,7 +38,7 @@ const VendorCard = ({ vendor, onClick, index }: VendorCardProps) => {
           )}
         </div>
 
-        {/* Delivery Time - FoodPanda style */}
+        {/* Delivery Time */}
         <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3">
           <div className="bg-background/95 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1 shadow-md">
             <Clock className="h-3 w-3 text-primary" />

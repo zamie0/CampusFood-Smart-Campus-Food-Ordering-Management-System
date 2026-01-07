@@ -17,6 +17,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+import VendorDashboardTab from "./tabs/Dashboard";
+import VendorOrdersTab from "./tabs/Orders";
+import VendorMenuTab from "./tabs/Menu";
+import VendorAnalyticsTab from "./tabs/Analytics";
+import VendorSettingsTab from "./tabs/Settings";
+
 type Tab = "dashboard" | "orders" | "menu" | "analytics" | "settings";
 
 interface MenuItem {
@@ -60,6 +66,8 @@ const VendorDashboard = () => {
     image: "",
     tags: "",
   });
+  const [phone, setPhone] = useState("");
+  const [description, setDescription] = useState("");
 
   useEffect(() => {
     const isVendor = localStorage.getItem("vendorLoggedIn");
@@ -70,6 +78,8 @@ const VendorDashboard = () => {
     
     const currentVendor = JSON.parse(localStorage.getItem("currentVendor") || "{}");
     setVendor(currentVendor);
+    setPhone(currentVendor.phone || "");
+    setDescription(currentVendor.description || "");
     loadData(currentVendor.id);
     
     // Load store open status
@@ -86,6 +96,24 @@ const VendorDashboard = () => {
     
     const savedOrders = JSON.parse(localStorage.getItem(`vendorOrders_${vendorId}`) || "[]");
     setOrders(savedOrders);
+  };
+
+  const handleSaveChanges = () => {
+    if (!vendor) return;
+    
+    // Update vendor data in localStorage
+    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
+    const updatedVendors = registeredVendors.map((v: any) => 
+      v.id === vendor.id 
+        ? { ...v, phone, description }
+        : v
+    );
+    
+    localStorage.setItem("registeredVendors", JSON.stringify(updatedVendors));
+    localStorage.setItem("currentVendor", JSON.stringify({ ...vendor, phone, description }));
+    
+    setVendor({ ...vendor, phone, description });
+    toast.success("Changes saved successfully");
   };
 
   const handleLogout = () => {
@@ -278,7 +306,7 @@ const VendorDashboard = () => {
         {/* Content Area */}
         <div className="flex-1 p-6 overflow-auto">
           {activeTab === "dashboard" && (
-            <VendorDashboardContent 
+            <VendorDashboardTab 
               stats={stats} 
               onAddItem={() => setShowAddModal(true)}
               onViewOrders={() => setActiveTab("orders")}
@@ -288,26 +316,31 @@ const VendorDashboard = () => {
             />
           )}
           {activeTab === "orders" && (
-            <OrdersContent 
+            <VendorOrdersTab 
               orders={orders} 
               onUpdateStatus={updateOrderStatus}
             />
           )}
           {activeTab === "menu" && (
-            <MenuContent 
+            <VendorMenuTab 
               items={menuItems}
               onToggleAvailability={toggleItemAvailability}
               onDelete={deleteMenuItem}
               onAdd={() => setShowAddModal(true)}
             />
           )}
-          {activeTab === "analytics" && <VendorAnalyticsContent stats={stats} orders={orders} />}
+          {activeTab === "analytics" && <VendorAnalyticsTab stats={stats} orders={orders} />}
           {activeTab === "settings" && (
-            <VendorSettingsContent 
+            <VendorSettingsTab 
               vendor={vendor} 
               isStoreOpen={isStoreOpen} 
               onToggleStore={toggleStoreOpen}
               onUpdateImage={handleUpdateVendorImage}
+              phone={phone}
+              description={description}
+              onPhoneChange={setPhone}
+              onDescriptionChange={setDescription}
+              onSaveChanges={handleSaveChanges}
             />
           )}
         </div>
@@ -740,11 +773,16 @@ const VendorAnalyticsContent = ({ stats, orders }: { stats: any; orders: Order[]
   </div>
 );
 
-const VendorSettingsContent = ({ vendor, isStoreOpen, onToggleStore, onUpdateImage }: { 
+const VendorSettingsContent = ({ vendor, isStoreOpen, onToggleStore, onUpdateImage, phone, description, onPhoneChange, onDescriptionChange, onSaveChanges }: { 
   vendor: any;
   isStoreOpen: boolean;
   onToggleStore: () => void;
   onUpdateImage: (imageData: string) => void;
+  phone: string;
+  description: string;
+  onPhoneChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onSaveChanges: () => void;
 }) => (
   <div className="space-y-6">
     <Card>
@@ -825,13 +863,21 @@ const VendorSettingsContent = ({ vendor, isStoreOpen, onToggleStore, onUpdateIma
         </div>
         <div className="space-y-2">
           <Label>Phone</Label>
-          <Input value={vendor?.phone || ""} placeholder="Add phone number" />
+          <Input 
+            value={phone} 
+            onChange={(e) => onPhoneChange(e.target.value)}
+            placeholder="Add phone number" 
+          />
         </div>
         <div className="space-y-2">
           <Label>Description</Label>
-          <Input value={vendor?.description || ""} placeholder="Add description" />
+          <Input 
+            value={description} 
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            placeholder="Add description" 
+          />
         </div>
-        <Button>Save Changes</Button>
+        <Button onClick={onSaveChanges}>Save Changes</Button>
       </CardContent>
     </Card>
   </div>

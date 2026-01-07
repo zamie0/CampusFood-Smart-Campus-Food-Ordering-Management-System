@@ -1,15 +1,55 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Clock, CheckCircle2, ChefHat, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Order } from "@/data/mockData";
+
+export type TrackOrder = {
+  id: string;
+  vendorName: string;
+  items: { name: string; quantity: number; price: number }[];
+  total: number;
+  status: "pending" | "confirmed" | "preparing" | "ready" | "picked_up" | "delivered" | "cancelled" | "completed";
+  estimatedReady?: string;
+};
 
 interface OrderStatusCardProps {
-  order: Order;
+  order?: TrackOrder | null;
+  customerId?: string; // when provided, component will fetch the latest order
 }
 
-const OrderStatusCard = ({ order }: OrderStatusCardProps) => {
-  const getStatusConfig = (status: Order['status']) => {
+const OrderStatusCard = ({ order: initialOrder, customerId }: OrderStatusCardProps) => {
+  const [order, setOrder] = useState<TrackOrder | null | undefined>(initialOrder);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadLatest() {
+      if (!customerId) return;
+      try {
+        const res = await fetch(`/api/orders/latest?customerId=${customerId}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        if (!ignore) setOrder(data.order);
+      } catch (e) {
+        if (!ignore) setOrder(null);
+      }
+    }
+    if (customerId) loadLatest();
+    return () => { ignore = true; };
+  }, [customerId]);
+
+  if (order === null) {
+    return (
+      <div className="bg-card rounded-2xl border border-border p-5 text-sm text-muted-foreground">
+        No recent orders found.
+      </div>
+    );
+  }
+  if (!order) return null;
+
+  const getStatusConfig = (status: TrackOrder['status']) => {
     switch (status) {
       case 'pending':
         return {
@@ -101,7 +141,7 @@ const OrderStatusCard = ({ order }: OrderStatusCardProps) => {
               {item.quantity}x {item.name}
             </span>
             <span className="text-foreground font-medium">
-              ${(item.price * item.quantity).toFixed(2)}
+              RM {(item.price * item.quantity).toFixed(2)}
             </span>
           </div>
         ))}
@@ -111,7 +151,7 @@ const OrderStatusCard = ({ order }: OrderStatusCardProps) => {
       <div className="flex items-center justify-between pt-4 border-t border-border">
         <div>
           <p className="text-xs text-muted-foreground">Total</p>
-          <p className="text-lg font-bold text-foreground">${order.total.toFixed(2)}</p>
+          <p className="text-lg font-bold text-foreground">RM {order.total.toFixed(2)}</p>
         </div>
         {order.estimatedReady && order.status !== 'ready' && (
           <div className="text-right">

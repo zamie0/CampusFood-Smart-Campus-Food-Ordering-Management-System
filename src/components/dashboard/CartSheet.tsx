@@ -10,6 +10,7 @@ interface CartSheetProps {
   onUpdateQuantity: (itemId: string, quantity: number) => void;
   onRemoveItem: (itemId: string) => void;
   onCheckout: () => void;
+  isStudentVerified?: boolean;
 }
 
 const CartSheet = ({ 
@@ -18,14 +19,17 @@ const CartSheet = ({
   items, 
   onUpdateQuantity, 
   onRemoveItem,
-  onCheckout 
+  onCheckout,
+  isStudentVerified = false
 }: CartSheetProps) => {
   const subtotal = items.reduce(
     (sum, item) => sum + item.foodItem.price * item.quantity,
     0
   );
+  const studentDiscount = isStudentVerified ? subtotal * 0.05 : 0;
+  const discountedSubtotal = subtotal - studentDiscount;
   const serviceFee = 0.99;
-  const total = subtotal + serviceFee;
+  const total = discountedSubtotal + serviceFee;
 
   return (
     <AnimatePresence>
@@ -144,6 +148,14 @@ const CartSheet = ({
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="text-foreground">${subtotal.toFixed(2)}</span>
                   </div>
+                  {isStudentVerified && studentDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-success">
+                      <span className="flex items-center gap-1">
+                        <span>Student Discount (5%)</span>
+                      </span>
+                      <span>-${studentDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Service Fee</span>
                     <span className="text-foreground">${serviceFee.toFixed(2)}</span>

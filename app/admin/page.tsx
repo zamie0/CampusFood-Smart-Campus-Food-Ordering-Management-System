@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { 
   Users, Store, ShoppingBag, DollarSign, TrendingUp, Clock,
   CheckCircle, XCircle, Eye, LogOut, Bell, Settings, Menu,
-  ChefHat, AlertCircle, BarChart3, Calendar, Search, Filter
+  ChefHat, AlertCircle, BarChart3, Calendar, Search, Filter,
+  GraduationCap, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-type Tab = "dashboard" | "vendors" | "requests" | "orders" | "customers" | "analytics" | "settings";
+import DashboardTab from "./tabs/Dashboard";
+import VendorsTab from "./tabs/Vendors";
+import RequestsTab from "./tabs/Requests";
+import OrdersTab from "./tabs/Orders";
+import CustomersTab from "./tabs/Customers";
+import AnalyticsTab from "./tabs/Analytics";
+import SettingsTab from "./tabs/Settings";
+import StudentVerificationTab from "./tabs/StudentVerification";
+
+type Tab = "dashboard" | "vendors" | "requests" | "orders" | "customers" | "analytics" | "settings" | "student-verification";
 
 interface VendorRequest {
   id: string;
@@ -71,6 +81,7 @@ const AdminDashboard = () => {
   const [vendorRequests, setVendorRequests] = useState<VendorRequest[]>([]);
   const [approvedVendors, setApprovedVendors] = useState<ApprovedVendor[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [studentVerifications, setStudentVerifications] = useState<any[]>([]);
 
   useEffect(() => {
     const isAdmin = localStorage.getItem("adminLoggedIn");
@@ -82,12 +93,57 @@ const AdminDashboard = () => {
     loadData();
   }, [router]);
 
-  const loadData = () => {
+  const loadData = async () => {
     const requests = JSON.parse(localStorage.getItem("vendorRequests") || "[]");
     setVendorRequests(requests);
     
     const vendors = JSON.parse(localStorage.getItem("approvedVendors") || "[]");
     setApprovedVendors(vendors);
+
+    // Load student verification requests
+    await loadStudentVerifications();
+  };
+
+  const loadStudentVerifications = async () => {
+    try {
+      const res = await fetch('/api/admin/student-verifications', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      setStudentVerifications(data.items || data);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load verifications");
+    }
+  };
+
+  const handleVerifyStudent = async (profileId: string, userId: string) => {
+    try {
+      const res = await fetch(`/api/admin/student-verifications/${profileId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'verified' }),
+      });
+      if (!res.ok) throw new Error('Failed to verify');
+      toast.success("Student ID verified successfully");
+      loadStudentVerifications();
+    } catch (e) {
+      toast.error("Failed to verify student ID");
+    }
+  };
+
+  const handleDeclineStudent = async (profileId: string, userId: string) => {
+    try {
+      const res = await fetch(`/api/admin/student-verifications/${profileId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'declined' }),
+      });
+      if (!res.ok) throw new Error('Failed to decline');
+      toast.success("Student ID declined");
+      loadStudentVerifications();
+    } catch (e) {
+      toast.error("Failed to decline student ID");
+    }
   };
 
   const handleLogout = () => {
@@ -175,6 +231,7 @@ const AdminDashboard = () => {
     { id: "customers", label: "Customers", icon: Users },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
     { id: "settings", label: "Settings", icon: Settings },
+    { id: "student-verification", label: "Student Verification", icon: GraduationCap },
   ];
 
   return (
@@ -267,26 +324,34 @@ const AdminDashboard = () => {
         {/* Content Area */}
         <div className="flex-1 p-6 overflow-auto">
           {activeTab === "dashboard" && (
-            <DashboardContent stats={stats} pendingRequests={pendingRequests} />
+            <DashboardTab stats={stats} pendingRequests={pendingRequests} />
           )}
           {activeTab === "vendors" && (
-            <VendorsContent 
+            <VendorsTab 
               vendors={approvedVendors} 
               onToggleStatus={toggleVendorStatus}
               searchQuery={searchQuery}
             />
           )}
           {activeTab === "requests" && (
-            <RequestsContent 
+            <RequestsTab 
               requests={vendorRequests}
               onApprove={handleApproveVendor}
               onReject={handleRejectVendor}
             />
           )}
-          {activeTab === "orders" && <OrdersContent />}
-          {activeTab === "customers" && <CustomersContent />}
-          {activeTab === "analytics" && <AnalyticsContent stats={stats} />}
-          {activeTab === "settings" && <SettingsContent />}
+          {activeTab === "student-verification" && (
+            <StudentVerificationTab
+              verifications={studentVerifications}
+              onVerify={handleVerifyStudent}
+              onDecline={handleDeclineStudent}
+              searchQuery={searchQuery}
+            />
+          )}
+          {activeTab === "orders" && <OrdersTab />}
+          {activeTab === "customers" && <CustomersTab />}
+          {activeTab === "analytics" && <AnalyticsTab stats={stats} />}
+          {activeTab === "settings" && <SettingsTab />}
         </div>
       </main>
     </div>
@@ -824,6 +889,154 @@ const CustomersContent = () => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+const StudentVerificationContent = ({ 
+  verifications, 
+  onVerify, 
+  onDecline,
+  searchQuery 
+}: { 
+  verifications: any[];
+  onVerify: (profileId: string, userId: string) => void;
+  onDecline: (profileId: string, userId: string) => void;
+  searchQuery: string;
+}) => {
+  const filtered = verifications.filter(v => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      v.full_name?.toLowerCase().includes(query) ||
+      v.email?.toLowerCase().includes(query) ||
+      v.student_id?.toLowerCase().includes(query)
+    );
+  });
+
+  const pending = filtered.filter(v => v.student_id_verified === "pending");
+  const verified = filtered.filter(v => v.student_id_verified === "verified");
+  const declined = filtered.filter(v => v.student_id_verified === "declined");
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-2xl font-bold text-foreground">{pending.length}</p>
+              </div>
+              <AlertCircle className="w-8 h-8 text-warning" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Verified</p>
+                <p className="text-2xl font-bold text-foreground">{verified.length}</p>
+              </div>
+              <CheckCircle2 className="w-8 h-8 text-success" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Declined</p>
+                <p className="text-2xl font-bold text-foreground">{declined.length}</p>
+              </div>
+              <XCircle className="w-8 h-8 text-destructive" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Student ID Verification Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filtered.length === 0 ? (
+            <div className="text-center py-12">
+              <GraduationCap className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No student verification requests</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filtered.map((verification) => (
+                <Card key={verification.id} className="border-l-4 border-l-primary">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <GraduationCap className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">
+                              {verification.full_name || "Unknown"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{verification.email}</p>
+                          </div>
+                        </div>
+                        <div className="ml-13 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">Student ID:</span>
+                            <span className="text-sm text-muted-foreground">{verification.student_id}</span>
+                          </div>
+                          <Badge
+                            variant={
+                              verification.student_id_verified === "verified"
+                                ? "success"
+                                : verification.student_id_verified === "declined"
+                                ? "destructive"
+                                : "warning"
+                            }
+                            className="mt-2"
+                          >
+                            {verification.student_id_verified === "verified"
+                              ? "Verified"
+                              : verification.student_id_verified === "declined"
+                              ? "Declined"
+                              : "Pending"}
+                          </Badge>
+                        </div>
+                      </div>
+                      {verification.student_id_verified === "pending" && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => onVerify(verification.id, verification.user_id)}
+                            className="gap-2"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Verify
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => onDecline(verification.id, verification.user_id)}
+                            className="gap-2"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Decline
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

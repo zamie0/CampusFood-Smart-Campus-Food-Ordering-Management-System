@@ -1,13 +1,15 @@
 import { motion } from "framer-motion";
-import { Sparkles, Clock, ChefHat } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Sparkles} from "lucide-react";
 
 interface WelcomeHeroProps {
-  userName: string;
+  fullName: string;
   activeOrders: number;
+  ordersThisMonth: number;
+  totalSaved: number;
+  onTrackOrders?: () => void;
 }
 
-const WelcomeHero = ({ userName, activeOrders }: WelcomeHeroProps) => {
+const WelcomeHero = ({ fullName, ordersThisMonth }: WelcomeHeroProps) => {
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -27,36 +29,19 @@ const WelcomeHero = ({ userName, activeOrders }: WelcomeHeroProps) => {
           </div>
           
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            Welcome back, <span className="text-primary">{userName}</span>! 👋
+            Welcome back, <span className="text-primary">{fullName}</span>! 👋
           </h1>
           
           <p className="text-muted-foreground max-w-md">
             Check out today's specials and order ahead to skip the queue. Your favorite campus meals are just a tap away.
           </p>
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button variant="warm" size="lg">
-              <ChefHat className="h-4 w-4 mr-2" />
-              Browse Menu
-            </Button>
-            {activeOrders > 0 && (
-              <Button variant="outline" size="lg">
-                <Clock className="h-4 w-4 mr-2" />
-                Track {activeOrders} Active Order{activeOrders > 1 ? 's' : ''}
-              </Button>
-            )}
-          </div>
         </div>
 
         {/* Stats */}
         <div className="flex gap-4 md:gap-6">
           <div className="text-center p-4 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50">
-            <p className="text-2xl md:text-3xl font-bold text-primary">12</p>
+            <p className="text-2xl md:text-3xl font-bold text-primary">{ordersThisMonth}</p>
             <p className="text-xs text-muted-foreground">Orders This Month</p>
-          </div>
-          <div className="text-center p-4 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50">
-            <p className="text-2xl md:text-3xl font-bold text-accent">$86</p>
-            <p className="text-xs text-muted-foreground">Total Saved</p>
           </div>
         </div>
       </div>
