@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/config/db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import * as VendorModule from '@/models/Vendor';
 
-const Vendor = VendorModule.default || VendorModule;
+const Vendor = (async () => {
+  const mod = await import('@/models/Vendor');
+  // @ts-ignore
+  return (mod as any).default || (mod as any);
+})();
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const VendorModel = Vendor;
+    const VendorModel = await Vendor;
     const vendor = await VendorModel.findOne({ email: email.toLowerCase() });
 
     if (!vendor) {
@@ -52,4 +55,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
   }
 }
-

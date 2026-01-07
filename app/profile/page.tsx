@@ -8,25 +8,22 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import PersonalSection from "./sections/Personal";
-import SecuritySection from "./sections/Security";
 import OrdersSection from "./sections/Orders";
 import FavoritesSection from "./sections/Favorites";
 import NotificationsSection from "./sections/Notifications";
-import { User, Camera, History, Heart, Bell, Shield, ChevronLeft, LogOut, } from "lucide-react";
+import { User, History, Heart, Bell, Shield, ChevronLeft, LogOut, } from "lucide-react";
 import { FoodItem, Vendor, CartItem } from "@/data/mockData";
 
-type TabType = "personal" | "orders" | "favorites" | "notifications" | "security";
+type TabType = "personal" | "orders" | "favorites" | "notifications" ;
 
 interface Profile {
   id: string;
-  full_name: string | null;
+  fullName: string | null;    
   email: string | null;
-  avatar_url: string | null;
-  student_id: string | null;
-  student_id_verified?: "pending" | "verified" | "declined" | null;
-  notifications_enabled: boolean;
-  promo_notifications: boolean;
-  order_notifications: boolean;
+  avatarUrl: string | null;   
+  notificationsEnabled?: boolean;
+  promoNotifications?: boolean;
+  orderNotifications?: boolean;
 }
 
 interface Order {
@@ -53,13 +50,10 @@ const Profile = () => {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const { notifications, markAsRead, refreshNotifications } = useNotifications();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [allFoodItems, setAllFoodItems] = useState<FoodItem[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
 
-  // Form state
   const [fullName, setFullName] = useState("");
-  const [studentId, setStudentId] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [promoNotifications, setPromoNotifications] = useState(true);
   const [orderNotifications, setOrderNotifications] = useState(true);
@@ -69,24 +63,21 @@ const Profile = () => {
       router.push("/");
       return;
     }
-    // Sync from hash and set listeners
     const syncFromHash = () => {
       const hash = window.location.hash.replace('#', '') as TabType;
-      const allowed: TabType[] = ["personal","orders","favorites","notifications","security"];
+      const allowed: TabType[] = ["personal","orders","favorites","notifications"];
       setActiveTab(allowed.includes(hash) ? hash : 'personal');
     };
     syncFromHash();
     window.addEventListener('hashchange', syncFromHash);
 
     loadVendorsAndFoodItems();
-    fetchProfile();
     fetchOrders();
     fetchFavorites();
 
     return () => window.removeEventListener('hashchange', syncFromHash);
   }, [user, router]);
 
-  // Reload data when favorites tab is active
   useEffect(() => {
     if (activeTab === "favorites" && user) {
       loadVendorsAndFoodItems();
@@ -95,58 +86,15 @@ const Profile = () => {
   }, [activeTab, user]);
 
   const loadVendorsAndFoodItems = () => {
-    // Load vendors from localStorage
     const storedVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
     setAllVendors(storedVendors);
 
-    // Load all food items from all vendor menus
     const allItems: FoodItem[] = [];
     storedVendors.forEach((vendor: Vendor) => {
       const vendorMenu = JSON.parse(localStorage.getItem(`vendorMenu_${vendor.id}`) || "[]");
       allItems.push(...vendorMenu);
     });
     setAllFoodItems(allItems);
-  };
-
-  const fetchProfile = async () => {
-    if (!user) return;
-
-    try {
-      const res = await fetch('/api/user/profile', { cache: 'no-store' });
-      if (res.status === 404) {
-      const createRes = await fetch('/api/user/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: user.email,
-          fullName: user.fullName || null,
-          notificationsEnabled: true,
-          promoNotifications: true,
-          orderNotifications: true,
-        })
-      });
-        if (!createRes.ok) throw new Error('Failed to create profile');
-        const created = await createRes.json();
-        setProfile(created);
-        setFullName(created.full_name || "");
-        setStudentId(created.student_id || "");
-        setNotificationsEnabled(created.notifications_enabled ?? true);
-        setPromoNotifications(created.promo_notifications ?? true);
-        setOrderNotifications(created.order_notifications ?? true);
-      } else if (res.ok) {
-        const data = await res.json();
-        setProfile(data);
-        setFullName(data.fullName || "");
-        setStudentId(data.studentId || ""); 
-        setNotificationsEnabled(data.notificationsEnabled ?? true);
-        setPromoNotifications(data.promoNotifications ?? true);
-        setOrderNotifications(data.orderNotifications ?? true);
-      }
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const fetchOrders = async () => {
@@ -187,7 +135,7 @@ const Profile = () => {
             stored.forEach((fav: any) => {
               if (fav.food_item_id) {
                 allFavorites.push({
-                  id: `${vendorId}_${fav.food_item_id}`, // Create unique id
+                  id: `${vendorId}_${fav.food_item_id}`, 
                   food_item_id: fav.food_item_id,
                   vendor_id: vendorId,
                 });
@@ -203,87 +151,13 @@ const Profile = () => {
     }
   };
 
-  const notifyAdminStudentVerification = (studentIdValue: string) => {
-    const existing =
-      JSON.parse(localStorage.getItem("adminNotifications") || "[]") || [];
-
-    const newNotification = {
-      id: `student_${Date.now()}`,
-      type: "student_verification",
-      title: "New Student ID submitted",
-      message: `${fullName || user?.email || "A student"} submitted ID ${studentIdValue} for verification.`,
-      time: new Date().toISOString(),
-      isRead: false,
-      userId: user?.id,
-      studentId: studentIdValue,
-    };
-
-    localStorage.setItem(
-      "adminNotifications",
-      JSON.stringify([newNotification, ...existing])
-    );
-
-    // Inform other tabs (e.g., admin dashboard) about the update
-    window.dispatchEvent(new Event("storage"));
-  };
-
-
-  const handleSaveProfile = async () => {
-    if (!user) return;
-    setSaving(true);
-
-    try {
-      if (profile?.student_id_verified === "verified" && studentId !== (profile.student_id || "")) {
-        toast.error("Verified student IDs cannot be changed.");
-        setStudentId(profile.student_id || "");
-        setSaving(false);
-        return;
-      }
-
-      const currentStudentId = profile?.student_id || "";
-      const studentIdChanged = studentId !== currentStudentId;
-
-      const updatePayload: any = {
-        fullName: fullName || null,
-        studentId: studentId || null,
-        notificationsEnabled: notificationsEnabled,
-        promoNotifications: promoNotifications,
-        orderNotifications: orderNotifications,
-      };
-      if (studentIdChanged && studentId) updatePayload.studentIdVerified = "pending";
-
-      const res = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatePayload)
-      });
-
-      if (!res.ok) throw new Error('Failed to update profile');
-
-      if (studentIdChanged && studentId) {
-        notifyAdminStudentVerification(studentId);
-        toast.success("This student ID was sent to the admin for approval");
-      } else {
-        toast.success("Profile updated successfully");
-      }
-
-      await fetchProfile();
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      toast.error("Failed to save profile");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleRemoveFavorite = async (favoriteId: string) => {
     try {
       if (!user) return;
-      // Parse favoriteId which is in format "vendorId_food_item_id"
       const parts = favoriteId.split('_');
       if (parts.length < 2) return;
       const vendorId = parts[0];
-      const foodItemId = parts.slice(1).join('_'); // In case food_item_id contains underscores
+      const foodItemId = parts.slice(1).join('_');
       
       const key = `favorites_${user.id}_${vendorId}`;
       const stored = JSON.parse(localStorage.getItem(key) || '[]');
@@ -298,16 +172,13 @@ const Profile = () => {
   };
 
   const handleAddToCart = (item: FoodItem, vendorName: string) => {
-    // Load existing cart from localStorage
     const existingCart: CartItem[] = JSON.parse(
       localStorage.getItem(`cart_${user?.id}`) || "[]"
     );
 
-    // Check if item already exists in cart
     const existingItem = existingCart.find((ci) => ci.foodItem.id === item.id);
 
     if (existingItem) {
-      // Update quantity
       const updatedCart = existingCart.map((ci) =>
         ci.foodItem.id === item.id
           ? { ...ci, quantity: ci.quantity + 1 }
@@ -315,7 +186,6 @@ const Profile = () => {
       );
       localStorage.setItem(`cart_${user?.id}`, JSON.stringify(updatedCart));
     } else {
-      // Add new item
       const newCart = [
         ...existingCart,
         {
@@ -346,7 +216,6 @@ const Profile = () => {
     { id: "orders" as TabType, label: "Order History", icon: History },
     { id: "favorites" as TabType, label: "Favorites", icon: Heart },
     { id: "notifications" as TabType, label: "Notifications", icon: Bell },
-    { id: "security" as TabType, label: "Security", icon: Shield },
   ];
 
   if (!user) return null;
@@ -372,9 +241,9 @@ const Profile = () => {
               <div className="text-center mb-6">
                 <div className="relative w-20 h-20 mx-auto mb-4">
                   <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center">
-                    {profile?.avatar_url ? (
+                    {profile?.avatarUrl ? (
                       <img
-                        src={profile.avatar_url}
+                        src={profile.avatarUrl}
                         alt="Avatar"
                         className="w-full h-full rounded-full object-cover"
                       />
@@ -382,13 +251,7 @@ const Profile = () => {
                       <User className="w-8 h-8 text-primary" />
                     )}
                   </div>
-                  <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors">
-                    <Camera className="w-4 h-4" />
-                  </button>
                 </div>
-                <h2 className="font-semibold text-foreground">
-                  {profile?.full_name || "Student"}
-                </h2>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
               </div>
 
@@ -439,14 +302,8 @@ const Profile = () => {
               >
                 {activeTab === "personal" && (
                   <PersonalSection
-                    avatarUrl={profile?.avatar_url}
                     fullName={fullName}
                     email={user.email || ""}
-                    studentId={studentId}
-                    studentVerification={profile?.student_id_verified || null}
-                    onChangeStudentId={setStudentId}
-                    saving={saving}
-                    onSave={handleSaveProfile}
                   />
                 )}
 
@@ -475,10 +332,6 @@ const Profile = () => {
                     onAddToCart={handleAddToCart}
                     onBrowseMenu={() => router.push("/")}
                   />
-                )}
-
-                {activeTab === "security" && (
-                  <SecuritySection />
                 )}
               </motion.div>
             </AnimatePresence>
