@@ -8,6 +8,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import PersonalSection from "./sections/Personal";
+import SecuritySection from "./sections/Security";
 import OrdersSection from "./sections/Orders";
 import FavoritesSection from "./sections/Favorites";
 import NotificationsSection from "./sections/Notifications";
@@ -202,10 +203,6 @@ const Profile = () => {
     }
   };
 
-  /**
-   * Notify admin (via localStorage) that a new student ID is waiting for approval.
-   * This acts as a lightweight signal until a dedicated notifications table exists.
-   */
   const notifyAdminStudentVerification = (studentIdValue: string) => {
     const existing =
       JSON.parse(localStorage.getItem("adminNotifications") || "[]") || [];
@@ -352,9 +349,6 @@ const Profile = () => {
     { id: "security" as TabType, label: "Security", icon: Shield },
   ];
 
-  const getFoodItem = (id: string) => allFoodItems.find((f) => f.id === id);
-  const getVendor = (id: string) => allVendors.find((v) => v.id === id);
-
   if (!user) return null;
 
   return (
@@ -404,12 +398,8 @@ const Profile = () => {
                   <button
                     key={tab.id}
                     onClick={() => {
-                      if (tab.id === "security") {
-                        router.push("/security");
-                      } else {
-                        setActiveTab(tab.id);
-                        window.location.hash = tab.id;
-                      }
+                      setActiveTab(tab.id);
+                      window.location.hash = tab.id;
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                       activeTab === tab.id
@@ -447,12 +437,11 @@ const Profile = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                {/* Personal Info */}
                 {activeTab === "personal" && (
                   <PersonalSection
                     avatarUrl={profile?.avatar_url}
                     fullName={fullName}
-                    email={user.email || ''}
+                    email={user.email || ""}
                     studentId={studentId}
                     studentVerification={profile?.student_id_verified || null}
                     onChangeStudentId={setStudentId}
@@ -461,12 +450,10 @@ const Profile = () => {
                   />
                 )}
 
-                {/* Order History */}
                 {activeTab === "orders" && (
                   <OrdersSection orders={orders} onRefresh={fetchOrders} />
                 )}
 
-                {/* Notifications */}
                 {activeTab === "notifications" && (
                   <NotificationsSection
                     notifications={notifications as any}
@@ -475,17 +462,23 @@ const Profile = () => {
                   />
                 )}
 
-                {/* Favorites */}
                 {activeTab === "favorites" && (
                   <FavoritesSection
                     favorites={favorites}
                     allFoodItems={allFoodItems}
                     allVendors={allVendors}
-                    onRefresh={() => { loadVendorsAndFoodItems(); fetchFavorites(); }}
+                    onRefresh={() => {
+                      loadVendorsAndFoodItems();
+                      fetchFavorites();
+                    }}
                     onRemove={handleRemoveFavorite}
                     onAddToCart={handleAddToCart}
-                    onBrowseMenu={() => router.push('/')}
+                    onBrowseMenu={() => router.push("/")}
                   />
+                )}
+
+                {activeTab === "security" && (
+                  <SecuritySection />
                 )}
               </motion.div>
             </AnimatePresence>
