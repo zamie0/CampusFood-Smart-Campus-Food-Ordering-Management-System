@@ -34,13 +34,22 @@ const AdminPortalAuth = () => {
     }
   }, [router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
-      // Hardcoded demo credentials
-      if (adminUser.trim() === "admin" && adminPass === "admin123") {
+    try {
+      const response = await fetch('/api/admins/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: adminUser.trim(), password: adminPass }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
         if (remember) {
           localStorage.setItem("adminRememberUser", adminUser);
           localStorage.setItem("adminLoggedIn", "true"); // persist login
@@ -48,13 +57,19 @@ const AdminPortalAuth = () => {
           localStorage.removeItem("adminRememberUser");
           localStorage.setItem("adminLoggedIn", "true"); // session only
         }
+        localStorage.setItem("adminToken", data.token);
+        localStorage.setItem("currentAdmin", JSON.stringify(data.admin));
         toast.success("Admin login successful!");
         setTimeout(() => router.push("/admin"), 500);
       } else {
-        toast.error("Invalid admin credentials");
-        setLoading(false);
+        toast.error(data.error || "Invalid admin credentials");
       }
-    }, 600);
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -140,19 +155,18 @@ const AdminPortalAuth = () => {
                 </div>
               </div>
 
-              {/* Form */}
-              <form onSubmit={handleLogin} className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="admin-user">Username</Label>
-                  <Input
-                    id="admin-user"
-                    placeholder="Enter username"
-                    value={adminUser}
-                    onChange={(e) => setAdminUser(e.target.value)}
-                    autoComplete="username"
-                    className="h-11"
-                  />
-                </div>
+            <form onSubmit={handleLogin} className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="admin-user">Email</Label>
+                <Input
+                  id="admin-user"
+                  placeholder="Enter email"
+                  value={adminUser}
+                  onChange={(e) => setAdminUser(e.target.value)}
+                  autoComplete="email"
+                  className="h-11"
+                />
+              </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="admin-pass">Password</Label>
@@ -197,13 +211,12 @@ const AdminPortalAuth = () => {
                   {loading ? "Verifying..." : "Secure Sign In"}
                 </Button>
 
-                <p className="text-center text-xs text-muted-foreground">
-                  Demo: <b>admin</b> / <b>admin123</b>
-                </p>
-              </form>
-            </div>
-          </motion.div>
-        </div>
+              <p className="text-center text-xs text-muted-foreground">
+                Demo: email "admin@campusfood.com" / password "admin123"
+              </p>
+            </form>
+          </div>
+        </motion.div>
       </div>
     </main>
   );

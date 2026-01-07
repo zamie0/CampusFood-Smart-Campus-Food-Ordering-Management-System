@@ -33,12 +33,22 @@ const Index = () => {
   useEffect(() => {
     const loadVendors = async () => {
       try {
-        const response = await fetch('/api/vendors');
+        const response = await fetch('/api/vendors?status=active');
         if (response.ok) {
-          const vendorsData = await response.json();
-          setVendors(vendorsData.items || []);
-        } else {
-          console.error('Failed to load vendors');
+          const data = await response.json();
+          // Transform to match the Vendor interface
+          const transformedVendors = data.items.map((v: any) => ({
+            id: v._id,
+            name: v.name,
+            description: v.details || '',
+            rating: v.rating || 0,
+            reviewCount: 0, // TODO: calculate from orders
+            image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop', // Default image
+            cuisine: v.categories?.[0] || 'Various',
+            deliveryTime: '15-25 min',
+            isOpen: v.isOnline && v.status === 'active',
+          }));
+          setVendors(transformedVendors);
         }
       } catch (error) {
         console.error('Error loading vendors:', error);
@@ -53,6 +63,10 @@ const Index = () => {
 
     loadVendors();
     loadActiveOrders();
+    
+    // Poll for vendor updates every 60 seconds
+    const interval = setInterval(loadVendors, 60000);
+    return () => clearInterval(interval);
   }, [user?.id]);
 
   // Get unique cuisines from vendors
@@ -117,7 +131,12 @@ const Index = () => {
     setCartItems(prev => prev.filter(ci => ci.foodItem.id !== itemId));
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
+    if (!user) {
+      toast.error("Please log in to place an order");
+      return;
+    }
+
     // Group items by vendor
     const itemsByVendor = cartItems.reduce((acc, item) => {
       const vendorId = item.foodItem.vendorId;
@@ -128,52 +147,48 @@ const Index = () => {
       return acc;
     }, {} as Record<string, typeof cartItems>);
 
-    // Create orders for each vendor
-    const allOrders = JSON.parse(localStorage.getItem("allCustomerOrders") || "[]");
-
-    Object.entries(itemsByVendor).forEach(([vendorId, items]) => {
-      const vendor = vendors.find(v => v.id === vendorId);
-      const orderTotal = items.reduce((sum, item) => sum + item.foodItem.price * item.quantity, 0);
-
-      const newOrder = {
-        id: `order_${Date.now()}_${vendorId}`,
-        customerId: user?.id,
-        customerName: userName,
-        customerEmail: user?.email,
-        vendorId: vendorId,
-        vendorName: vendor?.name || items[0].vendorName,
-        items: items.map(item => ({
+    try {
+      // Create orders for each vendor
+      const orderPromises = Object.entries(itemsByVendor).map(async ([vendorId, items]) => {
+        const orderItems = items.map(item => ({
+          foodItemId: item.foodItem.id,
           name: item.foodItem.name,
+          description: item.foodItem.description,
+          price: item.foodItem.price,
           quantity: item.quantity,
-          price: item.foodItem.price
-        })),
-        total: orderTotal,
-        status: "pending" as const,
-        orderTime: Date.now()
-      };
+          specialInstructions: '', // Could add this later
+        }));
 
-      allOrders.push(newOrder);
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            vendorId,
+            items: orderItems,
+            notes: '',
+          }),
+        });
 
-      // Also save to vendor-specific orders
-      const vendorOrders = JSON.parse(localStorage.getItem(`vendorOrders_${vendorId}`) || "[]");
-      vendorOrders.push({
-        id: newOrder.id,
-        customerName: newOrder.customerName,
-        items: newOrder.items,
-        total: newOrder.total,
-        status: newOrder.status,
-        orderTime: newOrder.orderTime
+        if (!response.ok) {
+          throw new Error(`Failed to create order for vendor ${vendorId}`);
+        }
+
+        return response.json();
       });
-      localStorage.setItem(`vendorOrders_${vendorId}`, JSON.stringify(vendorOrders));
-    });
 
-    localStorage.setItem("allCustomerOrders", JSON.stringify(allOrders));
+      await Promise.all(orderPromises);
 
-    toast.success("Order placed successfully!", {
-      description: "You'll be notified when your food is ready.",
-    });
-    setCartItems([]);
-    setIsCartOpen(false);
+      toast.success("Order placed successfully!", {
+        description: "You'll be notified when your food is ready.",
+      });
+      setCartItems([]);
+      setIsCartOpen(false);
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast.error("Failed to place order. Please try again.");
+    }
   };
 
   const handleVendorClick = (vendor: Vendor) => {

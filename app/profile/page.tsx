@@ -65,8 +65,11 @@ interface Order {
 
 interface Favorite {
   id: string;
-  food_item_id: string;
-  vendor_id: string;
+  name: string;
+  description: string;
+  rating: number;
+  cuisine: string;
+  image: string;
 }
 
 const Profile = () => {

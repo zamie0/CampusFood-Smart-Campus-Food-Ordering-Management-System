@@ -1,4 +1,4 @@
-# CampusFood
+# CampusFood – Smart Campus Food Ordering & Management System
 
 **Customer, Vendor & Admin Web Application**
 
@@ -12,7 +12,7 @@ This project is developed for **academic and educational purposes**, focusing on
 ---
 
 ## System Roles
-
+  
 ### 🧑‍🎓 Customer Site
 
 Customers can:

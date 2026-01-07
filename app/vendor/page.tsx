@@ -70,70 +70,105 @@ const VendorDashboard = () => {
   const [description, setDescription] = useState("");
 
   useEffect(() => {
-    const isVendor = localStorage.getItem("vendorLoggedIn");
-    if (!isVendor) {
-      router.push("/portal");
+    const token = localStorage.getItem("vendorToken");
+    if (!token) {
+      router.push("/portal/vendor");
       return;
     }
-    
+
     const currentVendor = JSON.parse(localStorage.getItem("currentVendor") || "{}");
     setVendor(currentVendor);
-    setPhone(currentVendor.phone || "");
-    setDescription(currentVendor.description || "");
-    loadData(currentVendor.id);
     
-    // Load store open status
-    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    const vendorData = registeredVendors.find((v: any) => v.id === currentVendor.id);
-    if (vendorData) {
-      setIsStoreOpen(vendorData.isOpen ?? true);
+    // Check if vendor is approved
+    if (currentVendor.status !== 'active') {
+      // Start polling for status updates
+      const pollStatus = async () => {
+        try {
+          const response = await fetch(`/api/vendors/${currentVendor.id}`);
+          if (response.ok) {
+            const vendorData = await response.json();
+            if (vendorData.status === 'active') {
+              // Vendor approved! Update local storage and reload
+              const updatedVendor = { ...currentVendor, status: 'active' };
+              localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
+              setVendor(updatedVendor);
+              toast.success("Your account has been approved! Welcome to the platform.");
+              loadData(currentVendor.id);
+            } else if (vendorData.status === 'suspended') {
+              // Vendor rejected
+              toast.error("Your registration has been rejected. Please contact support.");
+              handleLogout();
+            }
+          }
+        } catch (error) {
+          console.error('Error polling status:', error);
+        }
+      };
+
+      // Poll every 30 seconds
+      const interval = setInterval(pollStatus, 30000);
+      return () => clearInterval(interval);
     }
+    
+    loadData(currentVendor.id);
+
+    // Load store open status from vendor data
+    setIsStoreOpen(currentVendor.isOnline ?? true);
   }, [router]);
 
-  const loadData = (vendorId: string) => {
-    const savedMenu = JSON.parse(localStorage.getItem(`vendorMenu_${vendorId}`) || "[]");
-    setMenuItems(savedMenu);
-    
-    const savedOrders = JSON.parse(localStorage.getItem(`vendorOrders_${vendorId}`) || "[]");
-    setOrders(savedOrders);
-  };
+  const loadData = async (vendorId: string) => {
+    try {
+      // Fetch vendor data including menu
+      const vendorResponse = await fetch(`/api/vendors/${vendorId}`);
+      if (vendorResponse.ok) {
+        const vendorData = await vendorResponse.json();
+        setMenuItems(vendorData.menu || []);
+        setIsStoreOpen(vendorData.isOnline ?? true);
+      }
 
-  const handleSaveChanges = () => {
-    if (!vendor) return;
-    
-    // Update vendor data in localStorage
-    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    const updatedVendors = registeredVendors.map((v: any) => 
-      v.id === vendor.id 
-        ? { ...v, phone, description }
-        : v
-    );
-    
-    localStorage.setItem("registeredVendors", JSON.stringify(updatedVendors));
-    localStorage.setItem("currentVendor", JSON.stringify({ ...vendor, phone, description }));
-    
-    setVendor({ ...vendor, phone, description });
-    toast.success("Changes saved successfully");
+      // Fetch orders for this vendor
+      const ordersResponse = await fetch(`/api/orders?vendorId=${vendorId}`);
+      if (ordersResponse.ok) {
+        const ordersData = await ordersResponse.json();
+        setOrders(ordersData.orders || []);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast.error('Failed to load data');
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("vendorLoggedIn");
+    localStorage.removeItem("vendorToken");
     localStorage.removeItem("currentVendor");
     toast.success("Logged out successfully");
     router.push("/");
   };
 
-  const toggleStoreOpen = () => {
+  const toggleStoreOpen = async () => {
     const newStatus = !isStoreOpen;
     setIsStoreOpen(newStatus);
-    
-    // Update in registeredVendors for customer view
-    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    const updatedVendors = registeredVendors.map((v: any) => 
-      v.id === vendor?.id ? { ...v, isOpen: newStatus } : v
-    );
-    localStorage.setItem("registeredVendors", JSON.stringify(updatedVendors));
-    toast.success(newStatus ? "Store is now open!" : "Store is now closed");
+
+    try {
+      const response = await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isOnline: newStatus }),
+      });
+
+      if (response.ok) {
+        toast.success(newStatus ? "Store is now open!" : "Store is now closed");
+      } else {
+        toast.error('Failed to update store status');
+        setIsStoreOpen(!newStatus); // Revert on error
+      }
+    } catch (error) {
+      console.error('Error updating store status:', error);
+      toast.error('Failed to update store status');
+      setIsStoreOpen(!newStatus); // Revert on error
+    }
   };
 
   const handleUpdateVendorImage = (imageData: string) => {
@@ -150,7 +185,7 @@ const VendorDashboard = () => {
     toast.success("Store image updated!");
   };
 
-  const handleAddMenuItem = () => {
+  const handleAddMenuItem = async () => {
     if (!newItem.name || !newItem.price) {
       toast.error("Please fill in required fields");
       return;
@@ -172,36 +207,90 @@ const VendorDashboard = () => {
 
     const updatedMenu = [...menuItems, item];
     setMenuItems(updatedMenu);
-    localStorage.setItem(`vendorMenu_${vendor?.id}`, JSON.stringify(updatedMenu));
-    
+
+    // Update in database
+    try {
+      await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ menu: updatedMenu }),
+      });
+      toast.success("Menu item added!");
+    } catch (error) {
+      console.error('Error adding menu item:', error);
+      toast.error('Failed to add menu item');
+      setMenuItems(menuItems); // Revert
+      return;
+    }
+
     setNewItem({ name: "", price: "", category: "Main", description: "", prepTime: "15", image: "", tags: "" });
     setShowAddModal(false);
-    toast.success("Menu item added!");
   };
 
-  const toggleItemAvailability = (itemId: string) => {
+  const toggleItemAvailability = async (itemId: string) => {
     const updatedMenu = menuItems.map(item =>
       item.id === itemId ? { ...item, isAvailable: !item.isAvailable } : item
     );
     setMenuItems(updatedMenu);
-    localStorage.setItem(`vendorMenu_${vendor?.id}`, JSON.stringify(updatedMenu));
-    toast.success("Availability updated");
+
+    try {
+      await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ menu: updatedMenu }),
+      });
+      toast.success("Availability updated");
+    } catch (error) {
+      console.error('Error updating availability:', error);
+      toast.error('Failed to update availability');
+      setMenuItems(menuItems); // Revert
+    }
   };
 
-  const deleteMenuItem = (itemId: string) => {
+  const deleteMenuItem = async (itemId: string) => {
     const updatedMenu = menuItems.filter(item => item.id !== itemId);
     setMenuItems(updatedMenu);
-    localStorage.setItem(`vendorMenu_${vendor?.id}`, JSON.stringify(updatedMenu));
-    toast.success("Item deleted");
+
+    try {
+      await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ menu: updatedMenu }),
+      });
+      toast.success("Item deleted");
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete item');
+      setMenuItems(menuItems); // Revert
+    }
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: Order["status"]) => {
+  const updateOrderStatus = async (orderId: string, newStatus: Order["status"]) => {
     const updatedOrders = orders.map(order =>
       order.id === orderId ? { ...order, status: newStatus } : order
     );
     setOrders(updatedOrders);
-    localStorage.setItem(`vendorOrders_${vendor?.id}`, JSON.stringify(updatedOrders));
-    toast.success(`Order marked as ${newStatus}`);
+
+    try {
+      await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      toast.success(`Order marked as ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
+      setOrders(orders); // Revert
+    }
   };
 
   const stats = {
@@ -222,6 +311,28 @@ const VendorDashboard = () => {
     { id: "analytics", label: "Analytics", icon: TrendingUp },
     { id: "settings", label: "Settings", icon: Settings },
   ];
+
+  // Show pending approval screen if vendor is not approved
+  if (vendor && vendor.status !== 'active') {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center p-8">
+          <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Account Pending Approval</h1>
+          <p className="text-muted-foreground mb-6">
+            Your vendor registration is currently under review by our administrators. 
+            You will be notified once your account is approved.
+          </p>
+          <Button onClick={handleLogout} variant="outline">
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-background flex overflow-hidden">

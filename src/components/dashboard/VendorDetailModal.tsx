@@ -25,11 +25,34 @@ const VendorDetailModal = ({
   const [vendorItems, setVendorItems] = useState<FoodItem[]>([]);
   const [favorites, setFavorites] = useState<{ food_item_id: string }[]>([]);
 
-  // Load menu items from localStorage
+  // Load menu items from API
   useEffect(() => {
     if (vendor) {
-      const storedMenu = JSON.parse(localStorage.getItem(`vendorMenu_${vendor.id}`) || "[]");
-      setVendorItems(storedMenu);
+      const loadMenu = async () => {
+        try {
+          const response = await fetch(`/api/vendors/${vendor.id}`);
+          if (response.ok) {
+            const vendorData = await response.json();
+            // Transform menu items to match FoodItem interface
+            const transformedItems = (vendorData.menu || []).map((item: any) => ({
+              id: item._id || item.id,
+              vendorId: vendor.id,
+              name: item.name,
+              description: item.description || '',
+              price: item.price,
+              image: item.image || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=200&fit=crop',
+              category: item.status === 'active' ? 'Main' : 'Inactive', // Use status as category or default
+              tags: item.tags || [],
+              isAvailable: item.available !== false,
+              isPopular: item.status === 'popular', // Assuming status can be 'popular'
+            }));
+            setVendorItems(transformedItems);
+          }
+        } catch (error) {
+          console.error('Error loading menu:', error);
+        }
+      };
+      loadMenu();
     }
   }, [vendor]);
 
