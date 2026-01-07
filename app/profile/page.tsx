@@ -11,36 +11,10 @@ import PersonalSection from "./sections/Personal";
 import OrdersSection from "./sections/Orders";
 import FavoritesSection from "./sections/Favorites";
 import NotificationsSection from "./sections/Notifications";
-import SettingsSection from "./sections/Settings";
-import {
-  User,
-  Mail,
-  GraduationCap,
-  Camera,
-  History,
-  Heart,
-  Settings,
-  Bell,
-  Shield,
-  ChevronLeft,
-  Save,
-  LogOut,
-  ShoppingBag,
-  Plus,
-  RefreshCw,
-  Clock,
-  Trash2,
-  Tag,
-  Megaphone,
-  Store,
-  Star,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-} from "lucide-react";
+import { User, Camera, History, Heart, Bell, Shield, ChevronLeft, LogOut, } from "lucide-react";
 import { FoodItem, Vendor, CartItem } from "@/data/mockData";
 
-type TabType = "personal" | "orders" | "favorites" | "notifications" | "settings" | "security";
+type TabType = "personal" | "orders" | "favorites" | "notifications" | "security";
 
 interface Profile {
   id: string;
@@ -97,7 +71,7 @@ const Profile = () => {
     // Sync from hash and set listeners
     const syncFromHash = () => {
       const hash = window.location.hash.replace('#', '') as TabType;
-      const allowed: TabType[] = ["personal","orders","favorites","notifications","settings","security"];
+      const allowed: TabType[] = ["personal","orders","favorites","notifications","security"];
       setActiveTab(allowed.includes(hash) ? hash : 'personal');
     };
     syncFromHash();
@@ -375,7 +349,6 @@ const Profile = () => {
     { id: "orders" as TabType, label: "Order History", icon: History },
     { id: "favorites" as TabType, label: "Favorites", icon: Heart },
     { id: "notifications" as TabType, label: "Notifications", icon: Bell },
-    { id: "settings" as TabType, label: "Settings", icon: Settings },
     { id: "security" as TabType, label: "Security", icon: Shield },
   ];
 
@@ -512,20 +485,6 @@ const Profile = () => {
                     onRemove={handleRemoveFavorite}
                     onAddToCart={handleAddToCart}
                     onBrowseMenu={() => router.push('/')}
-                  />
-                )}
-
-                {/* Settings */}
-                {activeTab === "settings" && (
-                  <SettingsSection
-                    notificationsEnabled={notificationsEnabled}
-                    promoNotifications={promoNotifications}
-                    orderNotifications={orderNotifications}
-                    onChangeNotificationsEnabled={setNotificationsEnabled}
-                    onChangePromo={setPromoNotifications}
-                    onChangeOrder={setOrderNotifications}
-                    saving={saving}
-                    onSave={handleSaveProfile}
                   />
                 )}
               </motion.div>

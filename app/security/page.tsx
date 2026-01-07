@@ -105,26 +105,6 @@ const Security = () => {
                 </Button>
               </div>
             </div>
-
-            {/* Two-Factor Authentication */}
-            <div className="p-4 rounded-xl bg-muted/30 border border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center">
-                    <Lock className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Two-Factor Authentication</p>
-                    <p className="text-sm text-muted-foreground">
-                      Add extra security to your account
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" disabled>
-                  Coming Soon
-                </Button>
-              </div>
-            </div>
           </div>
         </div>
 
