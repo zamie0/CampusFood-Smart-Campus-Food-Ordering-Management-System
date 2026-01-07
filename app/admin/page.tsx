@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
   Users, Store, ShoppingBag, DollarSign, TrendingUp, Clock,
-  CheckCircle, XCircle, Eye, LogOut, Bell, Settings, Menu,
+  CheckCircle, XCircle, Eye, LogOut, Bell, Menu,
   ChefHat, AlertCircle, BarChart3, Calendar, Search, Filter,
   GraduationCap, CheckCircle2
 } from "lucide-react";
@@ -21,10 +21,9 @@ import RequestsTab from "./tabs/Requests";
 import OrdersTab from "./tabs/Orders";
 import CustomersTab from "./tabs/Customers";
 import AnalyticsTab from "./tabs/Analytics";
-import SettingsTab from "./tabs/Settings";
 import StudentVerificationTab from "./tabs/StudentVerification";
 
-type Tab = "dashboard" | "vendors" | "requests" | "orders" | "customers" | "analytics" | "settings" | "student-verification";
+type Tab = "dashboard" | "vendors" | "requests" | "orders" | "customers" | "analytics" | "student-verification";
 
 interface VendorRequest {
   id: string;
@@ -264,7 +263,6 @@ const AdminDashboard = () => {
     { id: "orders", label: "Orders", icon: ShoppingBag },
     { id: "customers", label: "Customers", icon: Users },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
-    { id: "settings", label: "Settings", icon: Settings },
     { id: "student-verification", label: "Student Verification", icon: GraduationCap },
   ];
 
@@ -385,7 +383,6 @@ const AdminDashboard = () => {
           {activeTab === "orders" && <OrdersTab />}
           {activeTab === "customers" && <CustomersTab />}
           {activeTab === "analytics" && <AnalyticsTab stats={stats} />}
-          {activeTab === "settings" && <SettingsTab />}
         </div>
       </main>
     </div>
