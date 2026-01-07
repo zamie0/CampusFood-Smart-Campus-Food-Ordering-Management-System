@@ -21,9 +21,8 @@ import RequestsTab from "./tabs/Requests";
 import OrdersTab from "./tabs/Orders";
 import CustomersTab from "./tabs/Customers";
 import AnalyticsTab from "./tabs/Analytics";
-import StudentVerificationTab from "./tabs/StudentVerification";
 
-type Tab = "dashboard" | "vendors" | "requests" | "orders" | "customers" | "analytics" | "student-verification";
+type Tab = "dashboard" | "vendors" | "requests" | "orders" | "customers" | "analytics" ;
 
 interface VendorRequest {
   id: string;
@@ -79,19 +78,6 @@ const AdminDashboard = () => {
   const [vendorRequests, setVendorRequests] = useState<VendorRequest[]>([]);
   const [approvedVendors, setApprovedVendors] = useState<ApprovedVendor[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [studentVerifications, setStudentVerifications] = useState<any[]>([]);
-
-  const loadStudentVerifications = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/student-verifications', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Failed to fetch');
-      const data = await res.json();
-      setStudentVerifications(data.items || data);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to load verifications");
-    }
-  }, []);
 
   const loadData = useCallback(async () => {
     const requests = JSON.parse(localStorage.getItem("vendorRequests") || "[]");
@@ -99,9 +85,7 @@ const AdminDashboard = () => {
     
     const vendors = JSON.parse(localStorage.getItem("approvedVendors") || "[]");
     setApprovedVendors(vendors);
-
-    await loadStudentVerifications();
-  }, [loadStudentVerifications]);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
@@ -115,36 +99,6 @@ const AdminDashboard = () => {
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [router, loadData]);
-
-  const handleVerifyStudent = async (profileId: string, userId: string) => {
-    try {
-      const res = await fetch(`/api/admin/student-verifications/${profileId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'verified' }),
-      });
-      if (!res.ok) throw new Error('Failed to verify');
-      toast.success("Student ID verified successfully");
-      loadStudentVerifications();
-    } catch (e) {
-      toast.error("Failed to verify student ID");
-    }
-  };
-
-  const handleDeclineStudent = async (profileId: string, userId: string) => {
-    try {
-      const res = await fetch(`/api/admin/student-verifications/${profileId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'declined' }),
-      });
-      if (!res.ok) throw new Error('Failed to decline');
-      toast.success("Student ID declined");
-      loadStudentVerifications();
-    } catch (e) {
-      toast.error("Failed to decline student ID");
-    }
-  };
 
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
@@ -261,7 +215,6 @@ const AdminDashboard = () => {
     { id: "orders", label: "Orders", icon: ShoppingBag },
     { id: "customers", label: "Customers", icon: Users },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
-    { id: "student-verification", label: "Student Verification", icon: GraduationCap },
   ];
 
   return (
@@ -349,14 +302,6 @@ const AdminDashboard = () => {
               requests={vendorRequests}
               onApprove={handleApproveVendor}
               onReject={handleRejectVendor}
-            />
-          )}
-          {activeTab === "student-verification" && (
-            <StudentVerificationTab
-              verifications={studentVerifications}
-              onVerify={handleVerifyStudent}
-              onDecline={handleDeclineStudent}
-              searchQuery={searchQuery}
             />
           )}
           {activeTab === "orders" && <OrdersTab />}
