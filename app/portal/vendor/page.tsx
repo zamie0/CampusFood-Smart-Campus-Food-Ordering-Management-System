@@ -49,12 +49,11 @@ const VendorPortalAuth = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Store in state instead of localStorage
-        setToken(data.token);
-        setVendor(data.vendor);
-
+        // Store authentication data in localStorage
+        localStorage.setItem("vendorToken", data.token);
+        localStorage.setItem("currentVendor", JSON.stringify(data.vendor));
         toast.success("Vendor login successful!");
-        setTimeout(() => router.push("/vendor"), 600);
+        router.push("/vendor"); 
       } else {
         toast.error(data.error || "Invalid credentials");
       }
