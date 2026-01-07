@@ -80,11 +80,36 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const loadData = useCallback(async () => {
-    const requests = JSON.parse(localStorage.getItem("vendorRequests") || "[]");
-    setVendorRequests(requests);
-    
-    const vendors = JSON.parse(localStorage.getItem("approvedVendors") || "[]");
-    setApprovedVendors(vendors);
+    try {
+      // Fetch pending vendors from API
+      const res = await fetch('/api/admin/vendors/pending');
+      if (res.ok) {
+        const data = await res.json();
+        setVendorRequests(data.items); // your backend already maps status: inactive -> pending
+      } else {
+        console.error("Failed to load pending vendors");
+      }
+
+      // Fetch approved vendors
+      const approvedRes = await fetch('/api/vendors?status=active');
+      if (approvedRes.ok) {
+        const approvedData = await approvedRes.json();
+        const transformedVendors = approvedData.items.map((v: any) => ({
+          id: v._id,
+          name: v.name,
+          email: v.email,
+          phone: v.phone,
+          description: v.details,
+          isActive: v.isOnline,
+          totalOrders: 0,
+          revenue: 0,
+          approvedAt: new Date(v.updatedAt).getTime(),
+        }));
+        setApprovedVendors(transformedVendors);
+      }
+    } catch (err) {
+      console.error("Error loading dashboard data:", err);
+    }
   }, []);
 
   useEffect(() => {
