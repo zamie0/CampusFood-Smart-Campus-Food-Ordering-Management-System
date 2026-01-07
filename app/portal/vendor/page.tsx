@@ -308,10 +308,6 @@ const VendorPortalAuth = () => {
                     <Button type="submit" className="w-full h-10">
                       Register
                     </Button>
-
-                    <p className="text-xs text-muted-foreground text-center">
-                      Registration requires admin approval
-                    </p>
                   </form>
                 )}
               </div>
