@@ -1,4 +1,4 @@
-# CampusFood – Smart Campus Food Ordering & Management Systemss
+# CampusFood – Smart Campus Food Ordering & Management Systems
 
 **Customer, Vendor & Admin Web Application**
 
