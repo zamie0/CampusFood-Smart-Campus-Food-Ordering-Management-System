@@ -42,7 +42,7 @@ interface Order {
   customerName: string;
   items: { name: string; quantity: number; price: number }[];
   total: number;
-  status: "pending" | "preparing" | "ready" | "completed";
+  status: "pending" | "confirmed" | "preparing" | "ready" | "picked_up" | "delivered" | "cancelled" | "completed";
   orderTime: number;
 }
 
@@ -104,18 +104,53 @@ const VendorDashboard = () => {
     
     loadData(currentVendor.id);
     setIsStoreOpen(currentVendor.isOnline ?? true);
+    
+    // Set up polling for orders
+    const interval = setInterval(() => {
+      if (currentVendor.id) {
+        loadData(currentVendor.id);
+      }
+    }, 30000); // Poll every 30 seconds
+    
+    return () => clearInterval(interval);
   }, [router]);
 
   const loadData = async (vendorId: string) => {
     try {
+      // Fetch vendor data
       const vendorResponse = await fetch(`/api/vendors/${vendorId}`);
       if (vendorResponse.ok) {
         const vendorData = await vendorResponse.json();
-        setMenuItems(vendorData.menu || []);
+        // Transform menu items from database format to component format
+        const menuItems = (vendorData.menu || []).map((item: any, index: number) => ({
+          id: `menu_${index}`,
+          vendorId: vendorId,
+          name: item.name || '',
+          price: item.price || 0,
+          category: item.tags?.[0] || 'Main',
+          description: item.description || '',
+          isAvailable: item.available !== false,
+          isPopular: false,
+          image: item.image || '',
+          prepTime: 15, // Default prep time
+          tags: item.tags || [],
+        }));
+        setMenuItems(menuItems);
         setIsStoreOpen(vendorData.isOnline ?? true);
+        setPhone(vendorData.phone || '');
+        setDescription(vendorData.details || '');
+        // Update vendor state
+        const updatedVendor = {
+          ...vendor,
+          ...vendorData,
+          id: vendorId,
+        };
+        setVendor(updatedVendor);
+        localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
       }
 
-      const ordersResponse = await fetch(`/api/orders?vendorId=${vendorId}`);
+      // Fetch vendor orders
+      const ordersResponse = await fetch(`/api/vendors/${vendorId}/orders`);
       if (ordersResponse.ok) {
         const ordersData = await ordersResponse.json();
         setOrders(ordersData.orders || []);
@@ -159,30 +194,55 @@ const VendorDashboard = () => {
     }
   };
 
-  const handleUpdateVendorImage = (imageData: string) => {
-    const updatedVendor = { ...vendor, image: imageData };
-    setVendor(updatedVendor);
-    localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
-    
-    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    const updatedVendors = registeredVendors.map((v: any) => 
-      v.id === vendor?.id ? { ...v, image: imageData } : v
-    );
-    localStorage.setItem("registeredVendors", JSON.stringify(updatedVendors));
-    toast.success("Store image updated!");
+  const handleUpdateVendorImage = async (imageData: string) => {
+    try {
+      const response = await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          image: imageData,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update store image');
+      }
+
+      // Reload vendor data
+      await loadData(vendor?.id);
+      toast.success("Store image updated!");
+    } catch (error) {
+      console.error('Error updating store image:', error);
+      toast.error('Failed to update store image');
+    }
   };
 
-  const handleSaveChanges = () => {
-    const updatedVendor = { ...vendor, phone, description };
-    setVendor(updatedVendor);
-    localStorage.setItem("currentVendor", JSON.stringify(updatedVendor));
-    
-    const registeredVendors = JSON.parse(localStorage.getItem("registeredVendors") || "[]");
-    const updatedVendors = registeredVendors.map((v: any) => 
-      v.id === vendor?.id ? { ...v, phone, description } : v
-    );
-    localStorage.setItem("registeredVendors", JSON.stringify(updatedVendors));
-    toast.success("Store details updated!");
+  const handleSaveChanges = async () => {
+    try {
+      const response = await fetch(`/api/vendors/${vendor?.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phone,
+          details: description,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update store details');
+      }
+
+      // Reload vendor data
+      await loadData(vendor?.id);
+      toast.success("Store details updated!");
+    } catch (error) {
+      console.error('Error updating store details:', error);
+      toast.error('Failed to update store details');
+    }
   };
 
   const handleAddMenuItem = async () => {
@@ -191,113 +251,134 @@ const VendorDashboard = () => {
       return;
     }
 
-    const item: MenuItem = {
-      id: `item_${Date.now()}`,
-      vendorId: vendor?.id,
+    // Transform to database format
+    const newMenuItem = {
       name: newItem.name,
       price: parseFloat(newItem.price),
-      category: newItem.category,
-      description: newItem.description,
-      isAvailable: true,
-      isPopular: false,
-      prepTime: parseInt(newItem.prepTime),
-      image: newItem.image || "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=200&fit=crop",
-      tags: newItem.tags ? newItem.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+      description: newItem.description || '',
+      available: true,
+      image: newItem.image || '',
+      tags: newItem.tags ? newItem.tags.split(",").map(t => t.trim()).filter(Boolean) : [newItem.category],
+      status: 'active',
     };
 
-    const updatedMenu = [...menuItems, item];
-    setMenuItems(updatedMenu);
-
+    const updatedMenu = [...(vendor?.menu || []), newMenuItem];
+    
     try {
-      await fetch(`/api/vendors/${vendor?.id}`, {
+      const response = await fetch(`/api/vendors/${vendor?.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ menu: updatedMenu }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to add menu item');
+      }
+
+      // Reload data to get updated menu
+      await loadData(vendor?.id);
       toast.success("Menu item added!");
+      setNewItem({ name: "", price: "", category: "Main", description: "", prepTime: "15", image: "", tags: "" });
+      setShowAddModal(false);
     } catch (error) {
       console.error('Error adding menu item:', error);
       toast.error('Failed to add menu item');
-      setMenuItems(menuItems); 
-      return;
     }
-
-    setNewItem({ name: "", price: "", category: "Main", description: "", prepTime: "15", image: "", tags: "" });
-    setShowAddModal(false);
   };
 
   const toggleItemAvailability = async (itemId: string) => {
-    const updatedMenu = menuItems.map(item =>
-      item.id === itemId ? { ...item, isAvailable: !item.isAvailable } : item
+    const itemIndex = parseInt(itemId.replace('menu_', ''));
+    const currentMenu = vendor?.menu || [];
+    const updatedMenu = currentMenu.map((item: any, index: number) =>
+      index === itemIndex ? { ...item, available: !item.available } : item
     );
-    setMenuItems(updatedMenu);
 
     try {
-      await fetch(`/api/vendors/${vendor?.id}`, {
+      const response = await fetch(`/api/vendors/${vendor?.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ menu: updatedMenu }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update availability');
+      }
+
+      // Reload data to get updated menu
+      await loadData(vendor?.id);
       toast.success("Availability updated");
     } catch (error) {
       console.error('Error updating availability:', error);
       toast.error('Failed to update availability');
-      setMenuItems(menuItems);
     }
   };
 
   const deleteMenuItem = async (itemId: string) => {
-    const updatedMenu = menuItems.filter(item => item.id !== itemId);
-    setMenuItems(updatedMenu);
+    const itemIndex = parseInt(itemId.replace('menu_', ''));
+    const currentMenu = vendor?.menu || [];
+    const updatedMenu = currentMenu.filter((_: any, index: number) => index !== itemIndex);
 
     try {
-      await fetch(`/api/vendors/${vendor?.id}`, {
+      const response = await fetch(`/api/vendors/${vendor?.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ menu: updatedMenu }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete item');
+      }
+
+      // Reload data to get updated menu
+      await loadData(vendor?.id);
       toast.success("Item deleted");
     } catch (error) {
       console.error('Error deleting item:', error);
       toast.error('Failed to delete item');
-      setMenuItems(menuItems);
     }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: Order["status"]) => {
-    const updatedOrders = orders.map(order =>
-      order.id === orderId ? { ...order, status: newStatus } : order
-    );
-    setOrders(updatedOrders);
-
     try {
-      await fetch(`/api/orders/${orderId}`, {
+      const response = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status: newStatus }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update order status');
+      }
+
+      // Reload orders to get updated status
+      if (vendor?.id) {
+        const ordersResponse = await fetch(`/api/vendors/${vendor.id}/orders`);
+        if (ordersResponse.ok) {
+          const ordersData = await ordersResponse.json();
+          setOrders(ordersData.orders || []);
+        }
+      }
       toast.success(`Order marked as ${newStatus}`);
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('Failed to update order status');
-      setOrders(orders); 
     }
   };
 
   const stats = {
     todayOrders: orders.filter(o => o.orderTime > Date.now() - 86400000).length,
-    pendingOrders: orders.filter(o => o.status === "pending").length,
+    pendingOrders: orders.filter(o => o.status === "pending" || o.status === "confirmed").length,
     preparingOrders: orders.filter(o => o.status === "preparing").length,
     todayRevenue: orders
-      .filter(o => o.orderTime > Date.now() - 86400000 && o.status === "completed")
+      .filter(o => o.orderTime > Date.now() - 86400000 && (o.status === "completed" || o.status === "delivered" || o.status === "picked_up"))
       .reduce((sum, o) => sum + o.total, 0),
     totalItems: menuItems.length,
     availableItems: menuItems.filter(m => m.isAvailable).length,

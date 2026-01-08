@@ -30,7 +30,7 @@ export interface VendorAnalyticsStats {
 export interface VendorAnalyticsOrder {
   id: string;
   total: number;
-  status: "pending" | "preparing" | "ready" | "completed";
+  status: "pending" | "confirmed" | "preparing" | "ready" | "picked_up" | "delivered" | "cancelled" | "completed";
   orderTime: number;
   items?: { name: string; quantity: number; price: number }[];
 }
@@ -52,7 +52,16 @@ export default function VendorAnalyticsTab({ stats, orders }: { stats: VendorAna
     const byKey: Record<string, { revenue: number; count: number }> = {};
     days.forEach((d) => (byKey[d.toISOString()] = { revenue: 0, count: 0 }));
 
-    const statusCount: Record<string, number> = { pending: 0, preparing: 0, ready: 0, completed: 0 };
+    const statusCount: Record<string, number> = { 
+      pending: 0, 
+      confirmed: 0, 
+      preparing: 0, 
+      ready: 0, 
+      picked_up: 0, 
+      delivered: 0, 
+      cancelled: 0, 
+      completed: 0 
+    };
     const itemCount: Record<string, number> = {};
 
     for (const o of orders) {
@@ -82,9 +91,13 @@ export default function VendorAnalyticsTab({ stats, orders }: { stats: VendorAna
 
     const statusSeries = [
       { name: "Pending", key: "pending", value: statusCount.pending || 0 },
+      { name: "Confirmed", key: "confirmed", value: statusCount.confirmed || 0 },
       { name: "Preparing", key: "preparing", value: statusCount.preparing || 0 },
       { name: "Ready", key: "ready", value: statusCount.ready || 0 },
+      { name: "Picked Up", key: "picked_up", value: statusCount.picked_up || 0 },
+      { name: "Delivered", key: "delivered", value: statusCount.delivered || 0 },
       { name: "Completed", key: "completed", value: statusCount.completed || 0 },
+      { name: "Cancelled", key: "cancelled", value: statusCount.cancelled || 0 },
     ];
 
     const topItems = Object.entries(itemCount)
@@ -105,16 +118,24 @@ export default function VendorAnalyticsTab({ stats, orders }: { stats: VendorAna
 
   const chartConfigStatus: ChartConfig = {
     pending: { label: "Pending", color: "hsl(var(--destructive))" },
+    confirmed: { label: "Confirmed", color: "hsl(var(--primary))" },
     preparing: { label: "Preparing", color: "hsl(var(--primary))" },
     ready: { label: "Ready", color: "hsl(var(--secondary-foreground))" },
+    picked_up: { label: "Picked Up", color: "hsl(var(--chart-2))" },
+    delivered: { label: "Delivered", color: "hsl(var(--foreground))" },
     completed: { label: "Completed", color: "hsl(var(--foreground))" },
+    cancelled: { label: "Cancelled", color: "hsl(var(--destructive))" },
   };
 
   const statusColors: Record<string, string> = {
     pending: "hsl(var(--destructive))",
+    confirmed: "hsl(var(--primary))",
     preparing: "hsl(var(--primary))",
     ready: "hsl(var(--secondary-foreground))",
+    picked_up: "hsl(var(--chart-2))",
+    delivered: "hsl(var(--foreground))",
     completed: "hsl(var(--foreground))",
+    cancelled: "hsl(var(--destructive))",
   };
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);

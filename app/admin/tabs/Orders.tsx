@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 interface CustomerOrder {
   id: string;
@@ -15,17 +16,36 @@ interface CustomerOrder {
   vendorName: string;
   items: { name: string; quantity: number; price: number }[];
   total: number;
-  status: "pending" | "preparing" | "ready" | "completed";
+  status: "pending" | "confirmed" | "preparing" | "ready" | "picked_up" | "delivered" | "cancelled" | "completed";
   orderTime: number;
 }
 
 export default function OrdersContent() {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [loading, setLoading] = useState(true);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/orders');
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
+      }
+      const data = await response.json();
+      setOrders(data.orders || []);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const allOrders = JSON.parse(localStorage.getItem("allCustomerOrders") || "[]");
-    setOrders(allOrders);
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
   const filteredOrders = filterStatus === "all" ? orders : orders.filter((o) => o.status === filterStatus);
@@ -34,21 +54,34 @@ export default function OrdersContent() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-foreground">All Orders ({orders.length})</h3>
-        <div className="flex gap-2">
-          {["all", "pending", "preparing", "ready", "completed"].map((status) => (
-            <Button
-              key={status}
-              variant={filterStatus === status ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterStatus(status)}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <div className="flex gap-2">
+            {["all", "pending", "confirmed", "preparing", "ready", "picked_up", "delivered", "cancelled"].map((status) => (
+              <Button
+                key={status}
+                variant={filterStatus === status ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterStatus(status)}
+              >
+                {status === "picked_up" ? "Picked Up" : status.charAt(0).toUpperCase() + status.slice(1)}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {filteredOrders.length === 0 ? (
+      {loading ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <RefreshCw className="w-12 h-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">Loading orders...</p>
+          </CardContent>
+        </Card>
+      ) : filteredOrders.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <ShoppingBag className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -66,14 +99,14 @@ export default function OrdersContent() {
                       <span className="font-semibold text-foreground">#{order.id.slice(-6)}</span>
                       <Badge
                         variant={
-                          order.status === "completed"
+                          order.status === "delivered" || order.status === "completed"
                             ? "default"
-                            : order.status === "pending"
+                            : order.status === "pending" || order.status === "cancelled"
                             ? "destructive"
                             : "secondary"
                         }
                       >
-                        {order.status}
+                        {order.status === "picked_up" ? "Picked Up" : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">

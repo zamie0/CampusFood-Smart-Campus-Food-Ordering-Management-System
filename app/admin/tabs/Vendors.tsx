@@ -38,7 +38,7 @@ interface CustomerOrder {
   vendorName: string;
   items: { name: string; quantity: number; price: number }[];
   total: number;
-  status: "pending" | "preparing" | "ready" | "completed";
+  status: "pending" | "confirmed" | "preparing" | "ready" | "picked_up" | "delivered" | "cancelled" | "completed";
   orderTime: number;
 }
 
@@ -60,13 +60,21 @@ export default function VendorsContent({
     v.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const viewVendorDetails = (vendor: ApprovedVendor) => {
+  const viewVendorDetails = async (vendor: ApprovedVendor) => {
     setSelectedVendor(vendor);
-    const menu = JSON.parse(localStorage.getItem(`vendorMenu_${vendor.id}`) || "[]");
-    setVendorMenu(menu);
-    const allOrders = JSON.parse(localStorage.getItem("allCustomerOrders") || "[]");
-    const orders = allOrders.filter((o: CustomerOrder) => o.vendorId === vendor.id);
-    setVendorOrders(orders);
+    try {
+      const response = await fetch(`/api/admin/vendors/${vendor.id}/details`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch vendor details');
+      }
+      const data = await response.json();
+      setVendorMenu(data.menu || []);
+      setVendorOrders(data.orders || []);
+    } catch (error) {
+      console.error('Error fetching vendor details:', error);
+      setVendorMenu([]);
+      setVendorOrders([]);
+    }
   };
 
   if (selectedVendor) {
@@ -139,10 +147,10 @@ export default function VendorsContent({
                         <p className="text-sm text-muted-foreground">{order.customerName}</p>
                       </div>
                       <Badge variant={
-                        order.status === "completed" ? "default" :
-                        order.status === "pending" ? "destructive" : "secondary"
+                        order.status === "delivered" || order.status === "completed" ? "default" :
+                        order.status === "pending" || order.status === "cancelled" ? "destructive" : "secondary"
                       }>
-                        {order.status}
+                        {order.status === "picked_up" ? "Picked Up" : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">

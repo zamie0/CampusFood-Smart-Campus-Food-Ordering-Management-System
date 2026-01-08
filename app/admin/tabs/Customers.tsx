@@ -3,57 +3,65 @@
 import React, { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
-interface CustomerOrder {
+interface Customer {
   id: string;
-  customerId?: string;
-  customerName: string;
-  customerEmail?: string;
-  vendorId: string;
-  vendorName: string;
-  items: { name: string; quantity: number; price: number }[];
-  total: number;
-  status: "pending" | "preparing" | "ready" | "completed";
-  orderTime: number;
+  name: string;
+  email: string;
+  phone?: string;
+  orders: number;
+  totalSpent: number;
+  createdAt?: string;
 }
 
 export default function CustomersContent() {
-  const [customers, setCustomers] = useState<{
-    name: string;
-    email: string;
-    orders: number;
-    totalSpent: number;
-  }[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/customers');
+      if (!response.ok) {
+        throw new Error('Failed to fetch customers');
+      }
+      const data = await response.json();
+      setCustomers(data.customers || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast.error('Failed to load customers');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const allOrders = JSON.parse(localStorage.getItem("allCustomerOrders") || "[]") as CustomerOrder[];
-    const customerMap = new Map<string, { name: string; email: string; orders: number; totalSpent: number }>();
-
-    allOrders.forEach((order) => {
-      const key = order.customerEmail || order.customerName;
-      const existing = customerMap.get(key);
-      if (existing) {
-        existing.orders += 1;
-        existing.totalSpent += order.total;
-      } else {
-        customerMap.set(key, {
-          name: order.customerName,
-          email: order.customerEmail || "N/A",
-          orders: 1,
-          totalSpent: order.total,
-        });
-      }
-    });
-
-    setCustomers(Array.from(customerMap.values()));
+    fetchCustomers();
+    const interval = setInterval(fetchCustomers, 60000); // Refresh every minute
+    return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Customers ({customers.length})</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-foreground">Customers ({customers.length})</h3>
+        <Button variant="outline" size="sm" onClick={fetchCustomers} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
 
-      {customers.length === 0 ? (
+      {loading ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <RefreshCw className="w-12 h-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">Loading customers...</p>
+          </CardContent>
+        </Card>
+      ) : customers.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -73,6 +81,9 @@ export default function CustomersContent() {
                     <div>
                       <p className="font-medium text-foreground">{customer.name}</p>
                       <p className="text-sm text-muted-foreground">{customer.email}</p>
+                      {customer.phone && (
+                        <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-6">

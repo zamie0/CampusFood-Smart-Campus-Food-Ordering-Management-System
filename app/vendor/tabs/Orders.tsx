@@ -11,7 +11,7 @@ export interface VendorOrder {
   customerName: string;
   items: { name: string; quantity: number; price: number }[];
   total: number;
-  status: "pending" | "preparing" | "ready" | "completed";
+  status: "pending" | "confirmed" | "preparing" | "ready" | "picked_up" | "delivered" | "cancelled" | "completed";
   orderTime: number;
 }
 
@@ -22,7 +22,7 @@ export default function VendorOrdersTab({
   orders: VendorOrder[];
   onUpdateStatus: (orderId: string, status: VendorOrder["status"]) => void;
 }) {
-  const statusOrder = ["pending", "preparing", "ready", "completed"];
+  const statusOrder = ["pending", "confirmed", "preparing", "ready", "picked_up", "delivered", "cancelled", "completed"];
   const sortedOrders = [...orders].sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
 
   return (
@@ -49,16 +49,16 @@ export default function VendorOrdersTab({
                       <span className="font-semibold text-foreground">#{order.id.slice(-6)}</span>
                       <Badge
                         variant={
-                          order.status === "pending"
+                          order.status === "pending" || order.status === "cancelled"
                             ? "destructive"
-                            : order.status === "preparing"
+                            : order.status === "preparing" || order.status === "confirmed"
                             ? "default"
                             : order.status === "ready"
                             ? "secondary"
                             : "outline"
                         }
                       >
-                        {order.status}
+                        {order.status === "picked_up" ? "Picked Up" : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{order.customerName}</p>
@@ -72,7 +72,7 @@ export default function VendorOrdersTab({
                     <p className="text-sm font-semibold text-foreground mt-2">Total: RM {order.total.toFixed(2)}</p>
                   </div>
                   <div className="flex flex-col gap-2">
-                    {order.status === "pending" && (
+                    {(order.status === "pending" || order.status === "confirmed") && (
                       <Button size="sm" onClick={() => onUpdateStatus(order.id, "preparing")}>
                         Start Preparing
                       </Button>
@@ -83,8 +83,13 @@ export default function VendorOrdersTab({
                       </Button>
                     )}
                     {order.status === "ready" && (
-                      <Button size="sm" onClick={() => onUpdateStatus(order.id, "completed")}>
-                        Complete
+                      <Button size="sm" onClick={() => onUpdateStatus(order.id, "picked_up")}>
+                        Mark Picked Up
+                      </Button>
+                    )}
+                    {order.status === "picked_up" && (
+                      <Button size="sm" onClick={() => onUpdateStatus(order.id, "delivered")}>
+                        Mark Delivered
                       </Button>
                     )}
                   </div>

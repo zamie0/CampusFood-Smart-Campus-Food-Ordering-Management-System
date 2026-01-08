@@ -94,17 +94,32 @@ const AdminDashboard = () => {
       const approvedRes = await fetch('/api/vendors?status=active');
       if (approvedRes.ok) {
         const approvedData = await approvedRes.json();
-        const transformedVendors = approvedData.items.map((v: any) => ({
-          id: v._id,
-          name: v.name,
-          email: v.email,
-          phone: v.phone,
-          description: v.details,
-          isActive: v.isOnline,
-          totalOrders: 0,
-          revenue: 0,
-          approvedAt: new Date(v.updatedAt).getTime(),
-        }));
+        // Fetch analytics to get real order and revenue data
+        const analyticsRes = await fetch('/api/admin/analytics');
+        let vendorStats: Record<string, { orders: number; revenue: number }> = {};
+        
+        if (analyticsRes.ok) {
+          const analyticsData = await analyticsRes.json();
+          // Map vendor stats from top vendors
+          analyticsData.topVendors?.forEach((v: any) => {
+            vendorStats[v.vendorId] = { orders: v.orders, revenue: v.revenue };
+          });
+        }
+
+        const transformedVendors = approvedData.items.map((v: any) => {
+          const stats = vendorStats[v._id] || { orders: 0, revenue: 0 };
+          return {
+            id: v._id,
+            name: v.name,
+            email: v.email,
+            phone: v.phone,
+            description: v.details,
+            isActive: v.isOnline,
+            totalOrders: stats.orders,
+            revenue: stats.revenue,
+            approvedAt: new Date(v.updatedAt).getTime(),
+          };
+        });
         setApprovedVendors(transformedVendors);
       }
     } catch (err) {
@@ -225,6 +240,8 @@ const AdminDashboard = () => {
   };
 
   const pendingRequests = vendorRequests.filter(r => r.status === "pending");
+  
+  // Calculate stats from approved vendors
   const stats = {
     totalVendors: approvedVendors.length,
     activeVendors: approvedVendors.filter(v => v.isActive).length,
@@ -331,7 +348,7 @@ const AdminDashboard = () => {
           )}
           {activeTab === "orders" && <OrdersTab />}
           {activeTab === "customers" && <CustomersTab />}
-          {activeTab === "analytics" && <AnalyticsTab stats={stats} />}
+          {activeTab === "analytics" && <AnalyticsTab />}
         </div>
       </main>
     </div>
