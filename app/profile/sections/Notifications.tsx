@@ -21,8 +21,8 @@ interface NotificationsProps {
 
 const Notifications: FC<NotificationsProps> = ({ notifications, onRefresh, onMarkRead }) => {
   return (
-    <div className="bg-card rounded-2xl border border-border p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-card rounded-2xl border border-border p-6 flex flex-col max-h-[calc(1000vh-14rem)]">
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <h3 className="text-lg font-semibold text-foreground">Notifications</h3>
         <Button variant="ghost" size="sm" onClick={onRefresh}>
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
@@ -30,7 +30,7 @@ const Notifications: FC<NotificationsProps> = ({ notifications, onRefresh, onMar
       </div>
 
       {notifications.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-12 flex-1 flex flex-col items-center justify-center">
           <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
             <Bell className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -38,7 +38,7 @@ const Notifications: FC<NotificationsProps> = ({ notifications, onRefresh, onMar
           <p className="text-sm text-muted-foreground mt-1">You'll see order updates and promotions here</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 overflow-y-auto flex-1 min-h-0 pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}>
           {notifications.map((notification) => (
             <div
               key={notification.id}

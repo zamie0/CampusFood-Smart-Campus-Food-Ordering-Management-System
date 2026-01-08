@@ -169,10 +169,10 @@ const Profile = () => {
       </header>
 
       <main className="container px-4 md:px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:items-start">
           {/* Sidebar */}
           <aside className="lg:col-span-1">
-            <div className="bg-card rounded-2xl border border-border p-6 sticky top-24">
+            <div className="bg-card rounded-2xl border border-border p-6 lg:sticky lg:top-24">
               {/* Profile Preview */}
               <div className="text-center mb-6">
                 <div className="relative w-20 h-20 mx-auto mb-4">
