@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Order } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface OrderTrackingSheetProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ const OrderTrackingSheet = ({ isOpen, onClose }: OrderTrackingSheetProps) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'pending':
@@ -78,6 +80,37 @@ const OrderTrackingSheet = ({ isOpen, onClose }: OrderTrackingSheetProps) => {
           progress: 0,
           message: '',
         };
+    }
+  };
+
+  // Handle order pickup
+  const handlePickupOrder = async (orderId: string) => {
+    setUpdatingOrderId(orderId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          status: 'picked_up',
+          pickedUpTime: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update order status');
+      }
+
+      toast.success('Order marked as picked up!');
+      
+      // Refresh orders to reflect the change
+      await fetchOrders();
+    } catch (err: any) {
+      console.error('Error updating order status:', err);
+      toast.error('Failed to update order status. Please try again.');
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -300,8 +333,13 @@ const OrderTrackingSheet = ({ isOpen, onClose }: OrderTrackingSheetProps) => {
                           </div>
                         )}
                         {order.status === 'ready' && (
-                          <Button variant="warm" size="sm">
-                            I'm Here
+                          <Button 
+                            variant="warm" 
+                            size="sm"
+                            onClick={() => handlePickupOrder(order.id)}
+                            disabled={updatingOrderId === order.id}
+                          >
+                            {updatingOrderId === order.id ? 'Updating...' : "I'm Here"}
                           </Button>
                         )}
                       </div>

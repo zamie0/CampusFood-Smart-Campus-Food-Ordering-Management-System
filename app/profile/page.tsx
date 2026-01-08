@@ -110,7 +110,9 @@ const Profile = () => {
     if (!user) return;
 
     try {
-      const res = await fetch(`/api/orders?status=completed`, { cache: 'no-store' });
+      // Fetch all orders (not just completed) to show in history
+      // Orders with status picked_up, delivered, or completed will appear in history
+      const res = await fetch(`/api/orders`, { cache: 'no-store' });
 
       if (!res.ok) {
         const errText = await res.text();
@@ -122,7 +124,11 @@ const Profile = () => {
       const data = await res.json();
 
       const list: any[] = Array.isArray(data.orders) ? data.orders : [];
-      const filtered = list.filter((o: any) => o.customerId?.email === user.email);
+      // Filter to show only completed, picked_up, or delivered orders in history
+      const filtered = list.filter((o: any) => {
+        const status = o.status;
+        return ['completed', 'picked_up', 'delivered'].includes(status);
+      });
       const mappedOrders: Order[] = filtered.map((order: any) => ({
         id: order._id?.toString?.() || order.id,
         vendor_name: order.vendorId?.name || 'Unknown Vendor',
@@ -131,9 +137,9 @@ const Profile = () => {
           quantity: item.quantity,
           price: item.price,
         })),
-        total: order.totalAmount,
+        total: order.totalAmount || order.total,
         status: order.status,
-        order_time: order.createdAt,
+        order_time: order.createdAt || order.orderTime,
       }));
 
       setOrders(mappedOrders);
