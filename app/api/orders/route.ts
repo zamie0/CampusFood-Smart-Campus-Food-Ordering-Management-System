@@ -5,6 +5,65 @@ import Customer from "@/models/Customer";
 import Order from "@/models/Order";
 import Vendor from "@/models/Vendor";
 
+export async function GET(req: NextRequest) {
+  try {
+    const user = await currentUser();
+    if (!user || !user.primaryEmailAddress?.emailAddress)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    await connectDB();
+
+    const customer = await Customer.findOne({
+      email: user.primaryEmailAddress.emailAddress,
+    });
+
+    if (!customer) {
+      return NextResponse.json({ orders: [] });
+    }
+
+    const url = new URL(req.url);
+    const status = url.searchParams.get('status');
+    const excludeStatus = url.searchParams.get('excludeStatus');
+
+    const query: any = { customerId: customer._id };
+    
+    if (status) {
+      query.status = status;
+    } else if (excludeStatus) {
+      query.status = { $ne: excludeStatus };
+    }
+
+    const orders = await Order.find(query)
+      .populate('vendorId', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const mappedOrders = orders.map((order: any) => ({
+      id: order._id.toString(),
+      vendorName: order.vendorId?.name || 'Unknown Vendor',
+      items: (order.items || []).map((item: any) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      total: order.totalAmount,
+      status: order.status,
+      orderTime: order.createdAt,
+      estimatedReady: order.estimatedReadyTime 
+        ? new Date(order.estimatedReadyTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : undefined,
+    }));
+
+    return NextResponse.json({ orders: mappedOrders });
+  } catch (err: any) {
+    console.error("GET /api/orders error:", err);
+    return NextResponse.json(
+      { error: "Failed to fetch orders", detail: err?.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const user = await currentUser();

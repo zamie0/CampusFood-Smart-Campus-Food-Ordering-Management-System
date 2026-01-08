@@ -37,7 +37,6 @@ const Header = ({
   const { user } = useAuth();
   const router = useRouter();
 
-  const orders: Order[] = [];
 
   // Search functionality
   const filteredVendors = vendors.filter((vendor) =>
@@ -302,7 +301,6 @@ const Header = ({
       <OrderTrackingSheet
         isOpen={showOrderTracking}
         onClose={() => setShowOrderTracking(false)}
-        orders={orders}
       />
     </>
   );

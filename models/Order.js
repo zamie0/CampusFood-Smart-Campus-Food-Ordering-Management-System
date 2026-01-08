@@ -63,7 +63,9 @@ OrderSchema.index({ createdAt: -1 });
 // This is important because Next.js caches modules and Mongoose caches models
 if (process.env.NODE_ENV === 'development' && mongoose.models.Order) {
   delete mongoose.models.Order;
-  delete mongoose.modelSchemas.Order;
+  if (mongoose.modelSchemas && mongoose.modelSchemas.Order) {
+    delete mongoose.modelSchemas.Order;
+  }
 }
 
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);

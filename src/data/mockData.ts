@@ -28,7 +28,7 @@ export interface Order {
   vendorName: string;
   items: { name: string; quantity: number; price: number }[];
   total: number;
-  status: 'pending' | 'preparing' | 'ready' | 'completed';
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'completed' | 'cancelled';
   orderTime: string;
   estimatedReady?: string;
 }
