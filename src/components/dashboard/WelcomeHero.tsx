@@ -36,14 +36,6 @@ const WelcomeHero = ({ fullName, ordersThisMonth }: WelcomeHeroProps) => {
             Check out today's specials and order ahead to skip the queue. Your favorite campus meals are just a tap away.
           </p>
         </div>
-
-        {/* Stats */}
-        <div className="flex gap-4 md:gap-6">
-          <div className="text-center p-4 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50">
-            <p className="text-2xl md:text-3xl font-bold text-primary">{ordersThisMonth}</p>
-            <p className="text-xs text-muted-foreground">Orders This Month</p>
-          </div>
-        </div>
       </div>
     </motion.section>
   );
