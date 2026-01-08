@@ -17,6 +17,8 @@ interface HeaderProps {
   onMenuClick: () => void;
   vendors?: Vendor[];
   foodItems?: FoodItem[];
+  onVendorClick?: (vendor: Vendor) => void;
+  onFoodItemClick?: (foodItem: FoodItem, vendor: Vendor) => void;
 }
 
 const Header = ({
@@ -25,6 +27,8 @@ const Header = ({
   onMenuClick,
   vendors = [],
   foodItems = [],
+  onVendorClick,
+  onFoodItemClick,
 }: HeaderProps) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showOrderTracking, setShowOrderTracking] = useState(false);
@@ -143,8 +147,13 @@ const Header = ({
                             <div
                               key={vendor.id}
                               onClick={() => {
-                                router.push(`/vendor/${vendor.id}`);
+                                if (onVendorClick) {
+                                  onVendorClick(vendor);
+                                } else {
+                                  router.push(`/`);
+                                }
                                 setShowSearchResults(false);
+                                setSearchQuery("");
                               }}
                               className="px-4 py-3 hover:bg-muted cursor-pointer transition-colors border-b border-input/50 last:border-b-0"
                             >
@@ -183,8 +192,17 @@ const Header = ({
                               <div
                                 key={item.id}
                                 onClick={() => {
-                                  router.push(`/vendor/${item.vendorId}`);
+                                  if (vendor) {
+                                    if (onFoodItemClick) {
+                                      onFoodItemClick(item, vendor);
+                                    } else if (onVendorClick) {
+                                      onVendorClick(vendor);
+                                    } else {
+                                      router.push(`/`);
+                                    }
+                                  }
                                   setShowSearchResults(false);
+                                  setSearchQuery("");
                                 }}
                                 className="px-4 py-3 hover:bg-muted cursor-pointer transition-colors border-b border-input/50 last:border-b-0"
                               >
@@ -257,12 +275,12 @@ const Header = ({
 
                   {showNotifications && (
                     <NotificationPanel
-                      notifications={notifications}
+                      notifications={notifications.slice(0, 3)}
                       onClose={() => setShowNotifications(false)}
                       onMarkAsRead={markAsRead}
                       onViewAll={() => {
                         setShowNotifications(false);
-                        router.push("/profile#orders");
+                        router.push("/profile#notifications");
                       }}
                     />
                   )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Star, Clock, ArrowLeft, Plus, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ interface VendorDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddToCart: (item: FoodItem) => void;
+  scrollToFoodItemId?: string;
 }
 
 const VendorDetailModal = ({
@@ -22,9 +23,11 @@ const VendorDetailModal = ({
   isOpen,
   onClose,
   onAddToCart,
+  scrollToFoodItemId,
 }: VendorDetailModalProps) => {
   const { user } = useAuth();
   const [vendorItems, setVendorItems] = useState<FoodItem[]>([]);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Load vendor menu
   useEffect(() => {
@@ -58,6 +61,26 @@ const VendorDetailModal = ({
 
     loadMenu();
   }, [vendor]);
+
+  // Scroll to food item when scrollToFoodItemId changes
+  useEffect(() => {
+    if (scrollToFoodItemId && isOpen && itemRefs.current[scrollToFoodItemId]) {
+      setTimeout(() => {
+        itemRefs.current[scrollToFoodItemId]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+        // Highlight the item briefly
+        const element = itemRefs.current[scrollToFoodItemId];
+        if (element) {
+          element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+          }, 2000);
+        }
+      }, 300);
+    }
+  }, [scrollToFoodItemId, isOpen]);
 
   if (!vendor) return null;
 
@@ -153,6 +176,9 @@ const VendorDetailModal = ({
                       {items.map((item) => (
                         <motion.div
                           key={item.id}
+                          ref={(el) => {
+                            if (el) itemRefs.current[item.id] = el;
+                          }}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="flex gap-4 p-3 rounded-xl bg-card border border-border hover:border-primary/30 transition-all group"

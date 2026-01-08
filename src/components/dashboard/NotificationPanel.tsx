@@ -55,7 +55,14 @@ const NotificationPanel = ({ notifications, onClose, onMarkAsRead, onViewAll }: 
         </div>
 
         <div className="max-h-80 overflow-y-auto">
-          {notifications.slice(0, 3).map((notification) => (
+          {notifications.length === 0 ? (
+            <div className="p-8 text-center">
+              <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No notifications</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">You'll see order updates here</p>
+            </div>
+          ) : (
+            notifications.map((notification) => (
             <div
               key={notification.id}
               className={`p-4 border-b border-border last:border-0 transition-colors hover:bg-muted/50 cursor-pointer ${
@@ -85,7 +92,8 @@ const NotificationPanel = ({ notifications, onClose, onMarkAsRead, onViewAll }: 
                 </div>
               </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="p-3 border-t border-border bg-muted/30">

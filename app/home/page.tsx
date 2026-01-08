@@ -28,6 +28,8 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCuisine, setSelectedCuisine] = useState("All");
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
+  const [allFoodItems, setAllFoodItems] = useState<FoodItem[]>([]);
+  const [scrollToFoodItemId, setScrollToFoodItemId] = useState<string | undefined>(undefined);
 
   // Load vendors from API
   useEffect(() => {
@@ -49,6 +51,34 @@ const Index = () => {
             isOpen: v.isOnline && v.status === 'active',
           }));
           setVendors(transformedVendors);
+
+          // Load food items from all vendors
+          const foodItemsPromises = transformedVendors.map(async (vendor: Vendor) => {
+            try {
+              const menuResponse = await fetch(`/api/vendors/${vendor.id}`);
+              if (menuResponse.ok) {
+                const menuData = await menuResponse.json();
+                return (menuData.menu || []).map((item: any) => ({
+                  id: item._id || `${vendor.id}-${item.name}`,
+                  vendorId: vendor.id,
+                  name: item.name,
+                  description: item.description || '',
+                  price: item.price,
+                  image: item.image || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=200&fit=crop',
+                  category: item.status === 'active' ? 'Main' : 'Inactive',
+                  tags: item.tags || [],
+                  isAvailable: item.available !== false,
+                  isPopular: item.status === 'popular',
+                }));
+              }
+            } catch (err) {
+              console.error(`Error loading menu for vendor ${vendor.id}:`, err);
+            }
+            return [];
+          });
+
+          const allItems = await Promise.all(foodItemsPromises);
+          setAllFoodItems(allItems.flat());
         }
       } catch (error) {
         console.error('Error loading vendors:', error);
@@ -209,10 +239,18 @@ const Index = () => {
   const handleVendorClick = (vendor: Vendor) => {
     setSelectedVendor(vendor);
     setIsVendorModalOpen(true);
+    setScrollToFoodItemId(undefined);
+  };
+
+  const handleFoodItemClick = (foodItem: FoodItem, vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setIsVendorModalOpen(true);
+    setScrollToFoodItemId(foodItem.id);
   };
 
   const handleCloseVendorModal = () => {
     setIsVendorModalOpen(false);
+    setScrollToFoodItemId(undefined);
     setTimeout(() => setSelectedVendor(null), 300);
   };
 
@@ -233,6 +271,10 @@ const Index = () => {
         cartItemCount={cartItemCount}
         onCartClick={() => setIsCartOpen(true)}
         onMenuClick={() => {}}
+        vendors={vendors}
+        foodItems={allFoodItems}
+        onVendorClick={handleVendorClick}
+        onFoodItemClick={handleFoodItemClick}
       />
 
       <main className="pb-24 md:pb-8">
@@ -315,6 +357,7 @@ const Index = () => {
         isOpen={isVendorModalOpen}
         onClose={handleCloseVendorModal}
         onAddToCart={handleAddToCart}
+        scrollToFoodItemId={scrollToFoodItemId}
       />
 
       {/* Cart Sheet */}
