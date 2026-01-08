@@ -102,7 +102,7 @@ const CartSheet = ({
                       <p className="text-xs text-muted-foreground">{item.vendorName}</p>
                       <div className="flex items-center justify-between mt-2">
                         <span className="font-semibold text-primary">
-                          ${(item.foodItem.price * item.quantity).toFixed(2)}
+                          RM{(item.foodItem.price * item.quantity).toFixed(2)}
                         </span>
                         <div className="flex items-center gap-2">
                           <Button
@@ -146,23 +146,23 @@ const CartSheet = ({
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground">${subtotal.toFixed(2)}</span>
+                    <span className="text-foreground">RM{subtotal.toFixed(2)}</span>
                   </div>
                   {isStudentVerified && studentDiscount > 0 && (
                     <div className="flex justify-between text-sm text-success">
                       <span className="flex items-center gap-1">
                         <span>Student Discount (5%)</span>
                       </span>
-                      <span>-${studentDiscount.toFixed(2)}</span>
+                      <span>-RM{studentDiscount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Service Fee</span>
-                    <span className="text-foreground">${serviceFee.toFixed(2)}</span>
+                    <span className="text-foreground">RM{serviceFee.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-base font-semibold pt-2 border-t border-border">
                     <span className="text-foreground">Total</span>
-                    <span className="text-primary">${total.toFixed(2)}</span>
+                    <span className="text-primary">RM{total.toFixed(2)}</span>
                   </div>
                 </div>
                 
@@ -172,7 +172,7 @@ const CartSheet = ({
                   className="w-full"
                   onClick={onCheckout}
                 >
-                  Checkout • ${total.toFixed(2)}
+                  Checkout • RM{total.toFixed(2)}
                 </Button>
               </div>
             )}

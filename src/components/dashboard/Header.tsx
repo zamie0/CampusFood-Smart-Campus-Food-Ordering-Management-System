@@ -214,7 +214,7 @@ const Header = ({
                                     </p>
                                     <div className="flex items-center gap-2 mt-1.5">
                                       <span className="font-semibold text-sm text-primary">
-                                        ${item.price.toFixed(2)}
+                                        RM{item.price.toFixed(2)}
                                       </span>
                                       {item.tags.length > 0 && (
                                         <div className="flex gap-1">

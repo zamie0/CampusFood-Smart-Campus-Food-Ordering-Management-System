@@ -111,7 +111,7 @@ const OrderHistorySheet = ({ isOpen, onClose, orders, onReorder }: OrderHistoryS
                             {item.quantity}x {item.name}
                           </span>
                           <span className="text-foreground font-medium">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            RM{(item.price * item.quantity).toFixed(2)}
                           </span>
                         </div>
                       ))}
@@ -121,7 +121,7 @@ const OrderHistorySheet = ({ isOpen, onClose, orders, onReorder }: OrderHistoryS
                     <div className="flex items-center justify-between pt-3 border-t border-border">
                       <div>
                         <p className="text-xs text-muted-foreground">Total</p>
-                        <p className="text-lg font-bold text-primary">${order.total.toFixed(2)}</p>
+                        <p className="text-lg font-bold text-primary">RM{order.total.toFixed(2)}</p>
                       </div>
                       {onReorder && (
                         <Button 

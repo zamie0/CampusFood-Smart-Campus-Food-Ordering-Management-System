@@ -291,7 +291,7 @@ const OrderTrackingSheet = ({ isOpen, onClose }: OrderTrackingSheetProps) => {
                       <div className="flex items-center justify-between pt-3 border-t border-border">
                         <div>
                           <p className="text-xs text-muted-foreground">Total</p>
-                          <p className="text-lg font-bold text-primary">${order.total.toFixed(2)}</p>
+                          <p className="text-lg font-bold text-primary">RM{order.total.toFixed(2)}</p>
                         </div>
                         {order.estimatedReady && order.status !== 'ready' && (
                           <div className="text-right">

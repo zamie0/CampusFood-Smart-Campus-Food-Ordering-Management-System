@@ -85,7 +85,7 @@ const FoodItemCard = ({ item, vendorName, onAddToCart, index }: FoodItemCardProp
           {/* Price & Add */}
           <div className="flex items-center justify-between mt-3">
             <span className="text-base font-bold text-primary">
-              ${item.price.toFixed(2)}
+              RM{item.price.toFixed(2)}
             </span>
             
             <Button
