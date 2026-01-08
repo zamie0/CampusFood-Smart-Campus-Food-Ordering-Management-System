@@ -96,7 +96,7 @@ const AdminDashboard = () => {
         const approvedData = await approvedRes.json();
         // Fetch analytics to get real order and revenue data
         const analyticsRes = await fetch('/api/admin/analytics');
-        let vendorStats: Record<string, { orders: number; revenue: number }> = {};
+        const vendorStats: Record<string, { orders: number; revenue: number }> = {};
         
         if (analyticsRes.ok) {
           const analyticsData = await analyticsRes.json();

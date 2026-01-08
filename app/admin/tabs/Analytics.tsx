@@ -47,7 +47,7 @@ export default function AnalyticsContent() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [period]);
+  }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading || !data) {
     return (
