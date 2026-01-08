@@ -150,14 +150,25 @@ const Index = () => {
     try {
       // Create orders for each vendor
       const orderPromises = Object.entries(itemsByVendor).map(async ([vendorId, items]) => {
-        const orderItems = items.map(item => ({
-          foodItemId: item.foodItem.id,
-          name: item.foodItem.name,
-          description: item.foodItem.description,
-          price: item.foodItem.price,
-          quantity: item.quantity,
-          specialInstructions: '', // Could add this later
-        }));
+        const orderItems = items.map(item => {
+          const orderItem: any = {
+            name: item.foodItem.name,
+            description: item.foodItem.description || '',
+            price: item.foodItem.price,
+            quantity: item.quantity,
+            specialInstructions: '', // Could add this later
+          };
+          
+          // Only include foodItemId if it's a valid ObjectId (24 hex characters)
+          if (item.foodItem.id && typeof item.foodItem.id === 'string' && /^[0-9a-fA-F]{24}$/.test(item.foodItem.id)) {
+            orderItem.foodItemId = item.foodItem.id;
+          }
+          
+          return orderItem;
+        });
+
+        // Calculate total for this vendor's order
+        const total = items.reduce((sum, item) => sum + (item.foodItem.price * item.quantity), 0);
 
         const response = await fetch('/api/orders', {
           method: 'POST',
@@ -167,12 +178,14 @@ const Index = () => {
           body: JSON.stringify({
             vendorId,
             items: orderItems,
+            total: parseFloat(total.toFixed(2)),
             notes: '',
           }),
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to create order for vendor ${vendorId}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to create order for vendor ${vendorId}`);
         }
 
         return response.json();
@@ -185,9 +198,11 @@ const Index = () => {
       });
       setCartItems([]);
       setIsCartOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Checkout error:', error);
-      toast.error("Failed to place order. Please try again.");
+      toast.error("Failed to place order", {
+        description: error?.message || "Please try again.",
+      });
     }
   };
 

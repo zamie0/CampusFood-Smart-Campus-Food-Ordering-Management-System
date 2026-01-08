@@ -15,20 +15,23 @@ interface HeaderProps {
   cartItemCount: number;
   onCartClick: () => void;
   onMenuClick: () => void;
-  searchQuery?: string;
-  onSearchChange?: (query: string) => void;
   vendors?: Vendor[];
   foodItems?: FoodItem[];
 }
 
-const Header = ({ cartItemCount, onCartClick, onMenuClick, searchQuery = "", onSearchChange, vendors = [], foodItems = [] }: HeaderProps) => {
+const Header = ({
+  cartItemCount,
+  onCartClick,
+  onMenuClick,
+  vendors = [],
+  foodItems = [],
+}: HeaderProps) => {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
   const [showOrderTracking, setShowOrderTracking] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { user } = useAuth();
@@ -70,33 +73,9 @@ const Header = ({ cartItemCount, onCartClick, onMenuClick, searchQuery = "", onS
     };
   }, [showSearchResults]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false);
-      } else if (currentScrollY < lastScrollY) {
-        setIsVisible(true);
-      }
-
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [lastScrollY]);
-
   return (
     <>
-      <header
-        className={`sticky top-0 z-40 bg-card/80 backdrop-blur-md border-b border-border transition-transform duration-300 ${
-          isVisible ? "translate-y-0" : "-translate-y-full"
-        }`}
-      >
+      <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-md border-b border-border">
         <div className="container flex items-center justify-between h-16 px-4 md:px-6">
           {/* Logo & Menu */}
           <div className="flex items-center gap-3">
@@ -136,7 +115,7 @@ const Header = ({ cartItemCount, onCartClick, onMenuClick, searchQuery = "", onS
                 placeholder="Search vendors, dishes..."
                 value={searchQuery}
                 onChange={(e) => {
-                  onSearchChange?.(e.target.value);
+                  setSearchQuery(e.target.value);
                   setShowSearchResults(true);
                 }}
                 onFocus={() => searchQuery && setShowSearchResults(true)}

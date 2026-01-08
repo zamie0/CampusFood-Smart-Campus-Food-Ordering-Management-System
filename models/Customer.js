@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const AddressSchema = new mongoose.Schema(
   {
@@ -27,4 +27,6 @@ const CustomerSchema = new mongoose.Schema(
 
 CustomerSchema.index({ name: 'text', email: 'text' });
 
-module.exports = mongoose.models.Customer || mongoose.model('Customer', CustomerSchema);
+const Customer = mongoose.models.Customer || mongoose.model('Customer', CustomerSchema);
+
+export default Customer;

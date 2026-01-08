@@ -1,15 +1,20 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const OrderItemSchema = new mongoose.Schema(
   {
-    foodItemId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    foodItemId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      required: false,
+      default: undefined,
+      sparse: true
+    },
     name: { type: String, required: true },
     description: { type: String },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true, min: 1 },
     specialInstructions: { type: String },
   },
-  { _id: false }
+  { _id: false, strict: true }
 );
 
 const OrderSchema = new mongoose.Schema(
@@ -54,4 +59,13 @@ OrderSchema.index({ vendorId: 1, createdAt: -1 });
 OrderSchema.index({ status: 1 });
 OrderSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.models.Order || mongoose.model('Order', OrderSchema);
+// In development, delete cached model to ensure schema changes take effect
+// This is important because Next.js caches modules and Mongoose caches models
+if (process.env.NODE_ENV === 'development' && mongoose.models.Order) {
+  delete mongoose.models.Order;
+  delete mongoose.modelSchemas.Order;
+}
+
+const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
+
+export default Order;

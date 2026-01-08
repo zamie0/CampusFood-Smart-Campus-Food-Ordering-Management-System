@@ -1,122 +1,79 @@
-import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/config/db';
-import { currentUser } from '@clerk/nextjs/server';
-
-const Order = (async () => {
-  const mod = await import('@/models/Order');
-  // @ts-ignore
-  return (mod as any).default || (mod as any);
-})();
-
-const Customer = (async () => {
-  const mod = await import('@/models/Customer');
-  // @ts-ignore
-  return (mod as any).default || (mod as any);
-})();
-
-const Vendor = (async () => {
-  const mod = await import('@/models/Vendor');
-  // @ts-ignore
-  return (mod as any).default || (mod as any);
-})();
-
-export async function GET(req: NextRequest) {
-  try {
-    await connectDB();
-    const user = await currentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const url = new URL(req.url);
-    const customerId = url.searchParams.get('customerId');
-    const vendorId = url.searchParams.get('vendorId');
-    const status = url.searchParams.get('status');
-    const limit = Number(url.searchParams.get('limit') || 50);
-    const page = Number(url.searchParams.get('page') || 1);
-
-    const Model = await Order;
-
-    const query: any = {};
-    if (customerId) query.customerId = customerId;
-    if (vendorId) query.vendorId = vendorId;
-    if (status) query.status = status;
-
-    const orders = await Model.find(query)
-      .populate('customerId', 'name email')
-      .populate('vendorId', 'name email')
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .sort({ createdAt: -1 })
-      .lean();
-
-    const total = await Model.countDocuments(query);
-
-    return NextResponse.json({ orders, total, page, limit });
-  } catch (err: any) {
-    console.error('GET /api/orders error', err);
-    return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
-  }
-}
+import { NextRequest, NextResponse } from "next/server";
+import { currentUser } from "@clerk/nextjs/server";
+import connectDB from "@/config/db";
+import Customer from "@/models/Customer";
+import Order from "@/models/Order";
+import Vendor from "@/models/Vendor";
 
 export async function POST(req: NextRequest) {
   try {
-    await connectDB();
     const user = await currentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user || !user.primaryEmailAddress?.emailAddress)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    await connectDB();
+
+    let customer = await Customer.findOne({
+      email: user.primaryEmailAddress.emailAddress,
+    });
+
+    // Auto-create customer if it doesn't exist
+    if (!customer) {
+      customer = await Customer.create({
+        email: user.primaryEmailAddress.emailAddress,
+        name: user.fullName || user.firstName || user.primaryEmailAddress.emailAddress.split('@')[0],
+        status: 'active',
+      });
     }
 
     const body = await req.json();
-    const { vendorId, items, deliveryAddress, notes } = body;
+    const { vendorId, items, total, notes } = body;
 
-    if (!vendorId || !items || items.length === 0) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
+    if (!vendorId || !items?.length)
+      return NextResponse.json({ error: "Invalid order data" }, { status: 400 });
 
-    const CustomerModel = await Customer;
-    const VendorModel = await Vendor;
-    const OrderModel = await Order;
+    if (total === undefined || total === null || total < 0)
+      return NextResponse.json({ error: "Total amount is required" }, { status: 400 });
 
-    // Find customer by Clerk ID
-    const customer = await CustomerModel.findOne({ email: user.primaryEmailAddress?.emailAddress });
-    if (!customer) {
-      return NextResponse.json({ error: 'Customer profile not found' }, { status: 404 });
-    }
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
 
-    // Verify vendor exists and is active
-    const vendor = await VendorModel.findById(vendorId);
-    if (!vendor || vendor.status !== 'active') {
-      return NextResponse.json({ error: 'Vendor not found or inactive' }, { status: 404 });
-    }
-
-    // Calculate total
-    let totalAmount = 0;
-    const orderItems = items.map((item: any) => {
-      const subtotal = item.price * item.quantity;
-      totalAmount += subtotal;
-      return {
-        foodItemId: item.foodItemId,
+    // Process items: only include foodItemId if it's a valid ObjectId
+    const processedItems = items.map((item: any) => {
+      const processedItem: any = {
         name: item.name,
-        description: item.description,
+        description: item.description || '',
         price: item.price,
         quantity: item.quantity,
-        specialInstructions: item.specialInstructions,
+        specialInstructions: item.specialInstructions || '',
       };
+
+      // Only add foodItemId if it exists and is a valid ObjectId string (24 hex characters)
+      // Don't include it at all if it's invalid/undefined to avoid validation errors
+      if (item.foodItemId && typeof item.foodItemId === 'string' && /^[0-9a-fA-F]{24}$/.test(item.foodItemId)) {
+        processedItem.foodItemId = item.foodItemId;
+      }
+      // If foodItemId is invalid or undefined, we simply don't include it in the object
+
+      return processedItem;
     });
 
-    const order = await OrderModel.create({
+    const order = await Order.create({
       customerId: customer._id,
-      vendorId,
-      items: orderItems,
-      totalAmount,
-      deliveryAddress,
-      notes,
+      vendorId: vendor._id,
+      items: processedItems,
+      totalAmount: total,
+      notes: notes || '',
+      status: "pending",
     });
 
     return NextResponse.json(order, { status: 201 });
+
   } catch (err: any) {
-    console.error('POST /api/orders error', err);
-    return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
+    console.error("POST /api/orders error:", err);
+    return NextResponse.json(
+      { error: "Failed to create order", detail: err?.message },
+      { status: 500 }
+    );
   }
 }
