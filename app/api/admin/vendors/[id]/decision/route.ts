@@ -29,19 +29,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     else if (action === 'reject') newStatus = 'suspended';
     else return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 
+    const previousStatus = vendor.status;
     vendor.status = newStatus;
     await vendor.save();
 
-    await AuditModel.create({
-      actorType: 'Admin',
-      actorId: adminId,
-      actorTypeRef: 'Admin',
-      action: action === 'approve' ? 'VENDOR_APPROVED' : 'VENDOR_REJECTED',
-      entityType: 'Vendor',
-      entityId: vendor._id,
-      reason,
-      metadata: { previousStatus: vendor.status, newStatus },
-    });
+    // Create audit log if AuditModel is available
+    try {
+      if (AuditModel && typeof AuditModel.create === 'function') {
+        await AuditModel.create({
+          actorType: 'Admin',
+          actorId: adminId || null,
+          actorTypeRef: 'Admin',
+          action: action === 'approve' ? 'VENDOR_APPROVED' : 'VENDOR_REJECTED',
+          entityType: 'Vendor',
+          entityId: vendor._id,
+          reason: reason || undefined,
+          metadata: { previousStatus, newStatus },
+        });
+      }
+    } catch (auditError) {
+      // Log audit error but don't fail the request
+      console.error('Failed to create audit log:', auditError);
+    }
 
     return NextResponse.json({ success: true, vendor: vendor.toObject() });
   } catch (err: any) {

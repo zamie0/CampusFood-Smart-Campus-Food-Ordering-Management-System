@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const AuditLogSchema = new mongoose.Schema(
   {
@@ -19,4 +19,14 @@ const AuditLogSchema = new mongoose.Schema(
 AuditLogSchema.index({ entityType: 1, entityId: 1, action: 1, createdAt: -1 });
 AuditLogSchema.index({ actorType: 1, actorId: 1, createdAt: -1 });
 
-module.exports = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+// In development, delete cached model to ensure schema changes take effect
+if (process.env.NODE_ENV === 'development' && mongoose.models.AuditLog) {
+  delete mongoose.models.AuditLog;
+  if (mongoose.modelSchemas && mongoose.modelSchemas.AuditLog) {
+    delete mongoose.modelSchemas.AuditLog;
+  }
+}
+
+const AuditLog = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+
+export default AuditLog;
